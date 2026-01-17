@@ -51,12 +51,15 @@
             IsBackButtonVisible="Collapsed"
             IsPaneToggleVisible="True"
             OpenPaneLength="280"
-            PaneDisplayMode="Left">
+            PaneDisplayMode="Left"
+            SelectionChanged="NavigationView_SelectionChanged">
 
             <ui:NavigationView.MenuItems>
                 <ui:NavigationViewItem
+                    x:Name="LibraryNavItem"
                     Content="技能库"
                     Icon="{ui:SymbolIcon Library24}"
+                    Tag=""
                     TargetPageType="{x:Type local:LibraryPage}" />
                 <ui:NavigationViewItem
                     Content="扫描导入"

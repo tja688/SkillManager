@@ -169,6 +169,44 @@ public class GroupService
     }
 
     /// <summary>
+    /// 批量将多个技能添加到多个分组
+    /// </summary>
+    public async Task<int> AddSkillsToGroupsAsync(IEnumerable<string> skillNames, IEnumerable<string> groupIds)
+    {
+        var skillList = skillNames.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct().ToList();
+        var groupIdSet = new HashSet<string>(groupIds.Where(id => !string.IsNullOrWhiteSpace(id)));
+
+        if (skillList.Count == 0 || groupIdSet.Count == 0)
+        {
+            return 0;
+        }
+
+        var index = _cachedIndex ?? await LoadIndexAsync();
+        var modified = false;
+        var addCount = 0;
+
+        foreach (var group in index.Groups.Where(g => groupIdSet.Contains(g.Id)))
+        {
+            foreach (var skillName in skillList)
+            {
+                if (!group.SkillNames.Contains(skillName))
+                {
+                    group.SkillNames.Add(skillName);
+                    addCount++;
+                    modified = true;
+                }
+            }
+        }
+
+        if (modified)
+        {
+            await SaveIndexAsync(index);
+        }
+
+        return addCount;
+    }
+
+    /// <summary>
     /// 将技能从分组移除
     /// </summary>
     public async Task<bool> RemoveSkillFromGroupAsync(string skillName, string groupId)

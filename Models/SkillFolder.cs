@@ -57,6 +57,18 @@ public partial class SkillFolder : ObservableObject
     private bool _isExpanded;
 
     /// <summary>
+    /// 所属分组显示文本
+    /// </summary>
+    [ObservableProperty]
+    private string _groupNamesDisplay = "未分组";
+
+    /// <summary>
+    /// 是否被多选选中
+    /// </summary>
+    [ObservableProperty]
+    private bool _isSelected;
+
+    /// <summary>
     /// SKILL.md文件的完整路径
     /// </summary>
     public string SkillMdPath => Path.Combine(FullPath, "SKILL.md");

@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
@@ -37,14 +38,18 @@ public class BoolToVisibilityConverter : IValueConverter
     {
         if (value is bool boolValue)
         {
-            return boolValue ? Visibility.Visible : Visibility.Collapsed;
+            var invert = string.Equals(parameter?.ToString(), "Invert", StringComparison.OrdinalIgnoreCase);
+            var isVisible = invert ? !boolValue : boolValue;
+            return isVisible ? Visibility.Visible : Visibility.Collapsed;
         }
         return Visibility.Collapsed;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        return value is Visibility visibility && visibility == Visibility.Visible;
+        var isVisible = value is Visibility visibility && visibility == Visibility.Visible;
+        var invert = string.Equals(parameter?.ToString(), "Invert", StringComparison.OrdinalIgnoreCase);
+        return invert ? !isVisible : isVisible;
     }
 }
 

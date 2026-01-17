@@ -7,36 +7,53 @@
       xmlns:viewmodels="clr-namespace:SkillManager.ViewModels"
       xmlns:models="clr-namespace:SkillManager.Models"
       mc:Ignorable="d" 
-      d:DesignHeight="450" d:DesignWidth="800"
+      d:DesignHeight="600" d:DesignWidth="900"
+      Foreground="{DynamicResource TextFillColorPrimaryBrush}"
       Title="LibraryPage"
       d:DataContext="{d:DesignInstance viewmodels:LibraryViewModel}">
 
-    <Grid>
+    <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        
+
         <!-- Header Toolbar -->
-        <Grid Grid.Row="0" Margin="20,10,20,10">
+        <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock Text="Skill Library" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <StackPanel>
+                <TextBlock Text="技能库" FontSize="28" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding SelectedGroup.Name, StringFormat=当前分组：{0}}"
+                           Margin="0,4,0,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                 <ui:TextBox PlaceholderText="搜索技能..." 
                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                             Icon="{ui:SymbolIcon Search24}"
-                            Width="250"
+                            Width="240"
                             Margin="0,0,10,0"/>
                 
                 <ui:Button Command="{Binding ManageGroupsCommand}" 
                            Icon="{ui:SymbolIcon AppsListDetail24}"
                            Content="管理分组"
+                           Margin="0,0,10,0"/>
+
+                <ui:Button Command="{Binding AddSelectedToGroupsCommand}"
+                           Icon="{ui:SymbolIcon Tag24}"
+                           Content="添加到分组"
+                           IsEnabled="{Binding HasSelection}"
+                           Margin="0,0,10,0"/>
+
+                <ui:Button Command="{Binding SelectAllFilteredCommand}"
+                           Icon="{ui:SymbolIcon Checkmark24}"
+                           Content="全选"
+                           IsEnabled="{Binding FilteredSkills.Count, Converter={StaticResource CountToBoolConverter}}"
                            Margin="0,0,10,0"/>
                 
                 <ui:Button Command="{Binding RefreshSkillsCommand}" 
@@ -45,141 +62,91 @@
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="1" Margin="20,0,20,20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- Skill List -->
+        <Grid Grid.Row="1" Margin="0,16,0,0">
+            <ui:ProgressRing IsIndeterminate="True" 
+                             Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
+                             VerticalAlignment="Center" HorizontalAlignment="Center"
+                             Width="50" Height="50"
+                             Panel.ZIndex="10"/>
 
-            <!-- Group List -->
-            <Border Grid.Column="0" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}" CornerRadius="8" Margin="0,0,10,0" Padding="5">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    
-                    <TextBlock Text="分组" Margin="10,10,0,10" FontWeight="Medium" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                    
-                    <ListView Grid.Row="1" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" SelectionMode="Single">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Name}" Padding="5"/>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </Grid>
-            </Border>
+            <ui:ListView ItemsSource="{Binding FilteredSkills}" 
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <ui:ListView.ItemTemplate>
+                    <DataTemplate DataType="{x:Type models:SkillFolder}">
+                        <ui:Card Padding="16" Margin="0,4"
+                                 MouseLeftButtonUp="SkillCard_MouseLeftButtonUp">
+                            <ui:Card.Style>
+                                <Style TargetType="ui:Card">
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ControlFillColorDefaultBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ui:Card.Style>
 
-            <!-- Skill List -->
-            <Grid Grid.Column="1">
-                <ui:ProgressRing IsIndeterminate="True" 
-                                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
-                                 VerticalAlignment="Center" HorizontalAlignment="Center"
-                                 Width="50" Height="50"
-                                 Panel.ZIndex="10"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Margin="20,0,0,0">
+                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding GroupNamesDisplay, StringFormat=所属分组：{0}}"
+                                               Margin="0,6,0,0"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
 
-                <ListView ItemsSource="{Binding FilteredSkills}" 
-                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListView.Style>
-                        <Style TargetType="ListView" BasedOn="{StaticResource {x:Type ListView}}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsLoading}" Value="True">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ListView.Style>
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            <Setter Property="Margin" Value="0,0,0,8"/>
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListView.ItemTemplate>
-                        <DataTemplate DataType="{x:Type models:SkillFolder}">
-                            <ui:Card Padding="15">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-
-                                    <!-- Main Content -->
-                                    <Grid Grid.Row="0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding Description}" 
-                                                       FontSize="12" 
-                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                       TextTrimming="CharacterEllipsis" 
-                                                       Height="36"
-                                                       Margin="0,5,0,0"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                                            <ui:Button Icon="{ui:SymbolIcon FolderOpen24}" 
-                                                       Command="{Binding DataContext.OpenSkillFolderCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                       CommandParameter="{Binding}"
-                                                       ToolTip="打开文件夹"
-                                                       Appearance="Secondary"
-                                                       Margin="0,0,5,0"/>
-                                            
-                                            <ui:Button Icon="{ui:SymbolIcon Tag24}"
-                                                       Command="{Binding DataContext.ManageSkillGroupsCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                       CommandParameter="{Binding}"
-                                                       ToolTip="管理分组"
-                                                       Appearance="Secondary"
-                                                       Margin="0,0,5,0"/>
-
-                                            <ui:Button Icon="{ui:SymbolIcon Delete24}" 
-                                                       Command="{Binding DataContext.DeleteSkillCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                       CommandParameter="{Binding}"
-                                                       ToolTip="删除技能"
-                                                       Appearance="Danger"/>
-                                        </StackPanel>
-                                    </Grid>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                    <ui:Button Icon="{ui:SymbolIcon FolderOpen24}" 
+                                               Command="{Binding DataContext.OpenSkillFolderCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                               CommandParameter="{Binding}"
+                                               ToolTip="打开文件夹"
+                                               Appearance="Secondary"
+                                               Margin="0,0,5,0"/>
                                     
-                                    <!-- Toggle Button -->
-                                    <ui:Button Grid.Row="1" Margin="0,10,0,0"
-                                               Appearance="Transparent"
-                                               HorizontalAlignment="Center"
-                                               Command="{Binding DataContext.ToggleExpandCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                               CommandParameter="{Binding}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <ui:SymbolIcon Symbol="{Binding IsExpanded, Converter={StaticResource BoolToChevronConverter}}"/>
-                                        </StackPanel>
-                                    </ui:Button>
+                                    <ui:Button Icon="{ui:SymbolIcon Tag24}"
+                                               Command="{Binding DataContext.ManageSkillGroupsCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                               CommandParameter="{Binding}"
+                                               ToolTip="管理分组"
+                                               Appearance="Secondary"
+                                               Margin="0,0,5,0"/>
 
-                                    <!-- Enhanced Expanded Details -->
-                                    <Grid Grid.Row="2" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibilityConverter}}">
-                                       <StackPanel Margin="0,10,0,0">
-                                            <ui:CardControl Icon="{ui:SymbolIcon SlideText24}" Header="Skill Title">
-                                                <TextBlock Text="{Binding SkillTitle}" TextWrapping="Wrap"/>
-                                            </ui:CardControl>
-                                            
-                                            <ui:CardControl Icon="{ui:SymbolIcon TextDescription24}" Header="When To Use" Margin="0,5,0,0">
-                                                <TextBlock Text="{Binding WhenToUse}" TextWrapping="Wrap"/>
-                                            </ui:CardControl>
-                                            
-                                            <TextBlock Text="{Binding FullPath, StringFormat='Path: {0}'}" 
-                                                       Margin="0,10,0,0" 
-                                                       FontSize="10" 
-                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-                                       </StackPanel>
+                                    <ui:Button Icon="{ui:SymbolIcon Delete24}" 
+                                               Command="{Binding DataContext.DeleteSkillCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                               CommandParameter="{Binding}"
+                                               ToolTip="删除技能"
+                                               Appearance="Danger"/>
+                                </StackPanel>
+
+                                <ui:Button Width="18"
+                                           Height="18"
+                                           Padding="0"
+                                           Margin="0"
+                                           Appearance="Transparent"
+                                           HorizontalAlignment="Left"
+                                           VerticalAlignment="Top"
+                                           Command="{Binding DataContext.EnterMultiSelectModeCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                           CommandParameter="{Binding}"
+                                           ToolTip="进入多选">
+                                    <Grid Width="14" Height="14">
+                                        <Ellipse Stroke="{DynamicResource TextFillColorTertiaryBrush}" StrokeThickness="1" Fill="Transparent"/>
+                                        <Ellipse Margin="3"
+                                                 Fill="{DynamicResource TextFillColorSecondaryBrush}"
+                                                 Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                     </Grid>
-                                </Grid>
-                            </ui:Card>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-            </Grid>
+                                </ui:Button>
+                            </Grid>
+                        </ui:Card>
+                    </DataTemplate>
+                </ui:ListView.ItemTemplate>
+            </ui:ListView>
         </Grid>
     </Grid>
 </Page>

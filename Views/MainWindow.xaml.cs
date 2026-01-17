@@ -1,5 +1,6 @@
 using SkillManager.Models;
 using SkillManager.ViewModels;
+using System.Linq;
 using System.Windows;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
@@ -26,8 +27,14 @@ public partial class MainWindow : FluentWindow
         _pageService = new PageService(this, ViewModel);
         NavigationView.SetPageService(_pageService);
 
+        ViewModel.LibraryViewModel.GroupsRefreshed += RefreshLibraryNavigationGroups;
+
         // 默认导航到Library页面
-        Loaded += (s, e) => NavigationView.Navigate(typeof(LibraryPage));
+        Loaded += (s, e) =>
+        {
+            RefreshLibraryNavigationGroups();
+            NavigationView.Navigate(typeof(LibraryPage));
+        };
     }
 
     /// <summary>
@@ -57,6 +64,47 @@ public partial class MainWindow : FluentWindow
         _currentDetailProject = null;
         _pageService.SetProjectDetailPage(null);
         NavigationView.Navigate(typeof(ProjectListPage));
+    }
+
+    private void NavigationView_SelectionChanged(object sender, RoutedEventArgs e)
+    {
+        if (sender is not NavigationView navigationView)
+        {
+            return;
+        }
+
+        if (navigationView.SelectedItem is not NavigationViewItem item)
+        {
+            return;
+        }
+
+        if (item.TargetPageType == typeof(LibraryPage))
+        {
+            ViewModel.LibraryViewModel.SelectGroupById(item.Tag as string);
+        }
+    }
+
+    private void RefreshLibraryNavigationGroups()
+    {
+        if (LibraryNavItem == null)
+        {
+            return;
+        }
+
+        LibraryNavItem.MenuItems.Clear();
+        var groups = ViewModel.LibraryViewModel.Groups.Where(group => !string.IsNullOrEmpty(group.Id)).ToList();
+
+        foreach (var group in groups)
+        {
+            LibraryNavItem.MenuItems.Add(new NavigationViewItem
+            {
+                Content = group.Name,
+                TargetPageType = typeof(LibraryPage),
+                Tag = group.Id
+            });
+        }
+
+        LibraryNavItem.IsExpanded = groups.Count > 0;
     }
 }
 

@@ -2,10 +2,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SkillManager.Models;
 using SkillManager.Services;
+using SkillManager.Views;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
-using Wpf.Ui.Controls;
 
 namespace SkillManager.ViewModels;
 
@@ -16,7 +16,8 @@ public partial class LibraryViewModel : ObservableObject
 {
     private readonly LibraryService _libraryService;
     private readonly GroupService _groupService;
-    private List<SkillFolder> _allSkills = new();
+    private readonly List<SkillFolder> _allSkills = new();
+    private string? _pendingGroupId;
 
     public LibraryViewModel(LibraryService libraryService, GroupService groupService)
     {
@@ -27,6 +28,8 @@ public partial class LibraryViewModel : ObservableObject
         Groups = new ObservableCollection<SkillGroup>();
         FilteredSkills = new ObservableCollection<SkillFolder>();
     }
+
+    public event Action? GroupsRefreshed;
 
     [ObservableProperty]
     private ObservableCollection<SkillFolder> _skills;
@@ -46,6 +49,15 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private string _searchText = string.Empty;
 
+    [ObservableProperty]
+    private bool _isMultiSelectMode;
+
+    [ObservableProperty]
+    private int _selectedSkillCount;
+
+    [ObservableProperty]
+    private bool _hasSelection;
+
     partial void OnSelectedGroupChanged(SkillGroup? value)
     {
         ApplyFilter();
@@ -56,6 +68,24 @@ public partial class LibraryViewModel : ObservableObject
         ApplyFilter();
     }
 
+    public void SelectGroupById(string? groupId)
+    {
+        if (Groups.Count == 0)
+        {
+            _pendingGroupId = groupId;
+            return;
+        }
+
+        var resolvedId = groupId ?? string.Empty;
+        var match = Groups.FirstOrDefault(g => g.Id == resolvedId) ?? Groups.FirstOrDefault();
+        if (match != null && SelectedGroup?.Id != match.Id)
+        {
+            SelectedGroup = match;
+        }
+
+        _pendingGroupId = null;
+    }
+
     [RelayCommand]
     public async Task RefreshSkills()
     {
@@ -63,30 +93,23 @@ public partial class LibraryViewModel : ObservableObject
         {
             IsLoading = true;
             
-            // 加载分组
             var groups = await _groupService.GetAllGroupsAsync();
             Groups.Clear();
-            // 添加"所有"选项
             Groups.Add(new SkillGroup { Id = string.Empty, Name = "所有技能" });
             foreach (var group in groups)
             {
                 Groups.Add(group);
             }
 
-            // 保持当前选中的分组
-            if (SelectedGroup != null)
-            {
-                SelectedGroup = Groups.FirstOrDefault(g => g.Id == SelectedGroup.Id) ?? Groups.First();
-            }
-            else
-            {
-                SelectedGroup = Groups.First();
-            }
+            var currentGroupId = _pendingGroupId ?? SelectedGroup?.Id ?? string.Empty;
+            SelectGroupById(currentGroupId);
 
-            // 加载技能
-            _allSkills = await _libraryService.GetAllSkillsAsync(true);
-            
+            _allSkills.Clear();
+            _allSkills.AddRange(await _libraryService.GetAllSkillsAsync(true));
+            ApplyGroupDisplay(_allSkills, groups);
+
             ApplyFilter();
+            GroupsRefreshed?.Invoke();
         }
         catch (Exception ex)
         {
@@ -98,19 +121,45 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    private void ApplyGroupDisplay(IEnumerable<SkillFolder> skills, IEnumerable<SkillGroup> groups)
+    {
+        var groupLookup = groups
+            .SelectMany(group => group.SkillNames.Select(name => new { name, group.Name }))
+            .GroupBy(item => item.name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(item => item.Name).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(name => name).ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var skill in skills)
+        {
+            if (groupLookup.TryGetValue(skill.Name, out var groupNames) && groupNames.Count > 0)
+            {
+                skill.GroupNamesDisplay = string.Join(", ", groupNames);
+            }
+            else
+            {
+                skill.GroupNamesDisplay = "未分组";
+            }
+        }
+    }
+
     private void ApplyFilter()
     {
         if (_allSkills == null) return;
 
+        if (IsMultiSelectMode || SelectedSkillCount > 0)
+        {
+            ClearSelection();
+        }
+
         var filtered = _allSkills.AsEnumerable();
 
-        // 分组筛选
         if (SelectedGroup != null && !string.IsNullOrEmpty(SelectedGroup.Id))
         {
             filtered = filtered.Where(s => SelectedGroup.SkillNames.Contains(s.Name));
         }
 
-        // 搜索筛选
         if (!string.IsNullOrWhiteSpace(SearchText))
         {
             filtered = filtered.Where(s => 
@@ -138,46 +187,141 @@ public partial class LibraryViewModel : ObservableObject
     {
         if (skill == null) return;
         
-        var result = System.Windows.MessageBox.Show(
+        var result = MessageBox.Show(
             $"确定要删除技能 '{skill.Name}' 吗？\n此操作将永久删除文件且无法撤销。",
             "确认删除",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Warning);
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
 
-        if (result == System.Windows.MessageBoxResult.Yes)
+        if (result == MessageBoxResult.Yes)
         {
             if (await _libraryService.DeleteSkillAsync(skill))
             {
-                // 同时更新分组数据
                 await _groupService.RemoveSkillFromAllGroupsAsync(skill.Name);
                 await RefreshSkills();
             }
         }
     }
 
-     // 占位功能：管理分组
     [RelayCommand]
     public async Task ManageGroups()
     {
-        // 这里应该显示管理分组的对话框
-        // 由于View代码丢失，这里先简化处理，实际应该调用ManageGroupsDialog
-        // TODO: Restore ManageGroupsDialog interaction
+        var dialog = new ManageGroupsDialog(_groupService)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            await RefreshSkills();
+        }
     }
 
-    // 占位功能：管理技能分组
     [RelayCommand]
     public async Task ManageSkillGroups(SkillFolder skill)
     {
         if (skill == null) return;
         
-        // 这里应该显示管理技能分组的对话框
-        // TODO: Restore ManageSkillGroupsDialog interaction
+        var dialog = new ManageSkillGroupsDialog(_groupService, skill.Name)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            await RefreshSkills();
+        }
     }
-    
+
     [RelayCommand]
-    public void ToggleExpand(SkillFolder skill)
+    public void EnterMultiSelectMode(SkillFolder skill)
     {
         if (skill == null) return;
-        skill.IsExpanded = !skill.IsExpanded;
+
+        if (!IsMultiSelectMode)
+        {
+            IsMultiSelectMode = true;
+        }
+
+        ToggleSelectionInternal(skill);
+    }
+
+    [RelayCommand]
+    public void SelectAllFiltered()
+    {
+        if (FilteredSkills.Count == 0) return;
+
+        IsMultiSelectMode = true;
+        foreach (var skill in FilteredSkills)
+        {
+            skill.IsSelected = true;
+        }
+        UpdateSelectionState();
+    }
+
+    [RelayCommand]
+    public async Task AddSelectedToGroups()
+    {
+        var selectedSkills = _allSkills.Where(skill => skill.IsSelected).ToList();
+        if (selectedSkills.Count == 0) return;
+
+        var dialog = new AddSkillsToGroupsDialog(_groupService, selectedSkills.Count)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var groupIds = dialog.SelectedGroupIds;
+            await _groupService.AddSkillsToGroupsAsync(selectedSkills.Select(skill => skill.Name), groupIds);
+            await RefreshSkills();
+            ClearSelection();
+        }
+    }
+
+    public void HandleCardClick(SkillFolder skill)
+    {
+        if (skill == null) return;
+
+        if (IsMultiSelectMode)
+        {
+            ToggleSelectionInternal(skill);
+            return;
+        }
+
+        var dialog = new SkillDetailDialog(skill)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+        dialog.ShowDialog();
+    }
+
+    private void ToggleSelectionInternal(SkillFolder skill)
+    {
+        skill.IsSelected = !skill.IsSelected;
+        UpdateSelectionState();
+    }
+
+    private void UpdateSelectionState()
+    {
+        SelectedSkillCount = _allSkills.Count(skill => skill.IsSelected);
+        HasSelection = SelectedSkillCount > 0;
+
+        if (IsMultiSelectMode && SelectedSkillCount == 0)
+        {
+            IsMultiSelectMode = false;
+        }
+    }
+
+    private void ClearSelection()
+    {
+        foreach (var skill in _allSkills)
+        {
+            skill.IsSelected = false;
+        }
+
+        SelectedSkillCount = 0;
+        HasSelection = false;
+        IsMultiSelectMode = false;
     }
 }

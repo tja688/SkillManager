@@ -45,6 +45,8 @@ public class ProjectSkillIndex
 {
     public string ProjectId { get; set; } = string.Empty;
 
+    public DateTime LastScanTime { get; set; }
+
     /// <summary>
     /// Key: ZoneFullPath, Value: List of Skills
     /// </summary>

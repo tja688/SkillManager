@@ -171,122 +171,178 @@ public class ProjectService
     {
         project.SkillZones.Clear();
 
-        await Task.Run(() =>
+        // 1. 尝试从索引快速加载
+        var index = await LoadProjectIndexAsync(project.Id);
+        if (index != null && index.Zones != null)
+        {
+            UpdateProjectUI(project, index);
+            
+            // 2. 后台增量刷新
+            _ = Task.Run(() => RefreshProjectSkillsAsync(project));
+        }
+        else
+        {
+            // 无索引，全量刷新
+            await RefreshProjectSkillsAsync(project);
+        }
+    }
+
+    /// <summary>
+    /// 刷新项目技能（增量扫描）
+    /// </summary>
+    public async Task RefreshProjectSkillsAsync(Project project)
+    {
+        await Task.Run(async () =>
         {
             if (!Directory.Exists(project.Path)) return;
 
-            var previews = new List<SkillZonePreview>();
+            // 加载现有索引用于对比
+            var index = await LoadProjectIndexAsync(project.Id) ?? new ProjectSkillIndex 
+            { 
+                ProjectId = project.Id,
+                Zones = new Dictionary<string, List<SkillIndexItem>>() 
+            };
             
-            // 搜索所有技能区
-            var dotFolders = Directory.GetDirectories(project.Path)
-                .Where(d => Path.GetFileName(d).StartsWith("."))
-                .ToList();
-
-            foreach (var dotFolder in dotFolders)
+            var newZones = new Dictionary<string, List<SkillIndexItem>>();
+            var zonePaths = new HashSet<string>();
+            
+            // 收集所有潜在的技能区路径
+            CollectZonePathsRecursive(project.Path, zonePaths, 3);
+            
+            // 处理每个技能区
+            foreach (var zonePath in zonePaths)
             {
-                var skillsPath = Path.Combine(dotFolder, "skills");
-                if (Directory.Exists(skillsPath))
-                {
-                    var zone = new SkillZone
-                    {
-                        Name = Path.GetFileName(dotFolder),
-                        FullPath = dotFolder
-                    };
-
-                    // 加载技能
-                    LoadSkillsInZone(zone);
-
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        project.SkillZones.Add(zone);
-                    });
-                }
+                 var skillsPath = Path.Combine(zonePath, "skills");
+                 if (!Directory.Exists(skillsPath)) continue;
+                 
+                 var zoneItems = new List<SkillIndexItem>();
+                 var existingZoneItems = index.Zones.TryGetValue(zonePath, out var z) ? z : new List<SkillIndexItem>();
+                 
+                 try 
+                 {
+                     foreach (var skillDir in Directory.GetDirectories(skillsPath))
+                     {
+                         var skillName = Path.GetFileName(skillDir);
+                         var skillMdPath = Path.Combine(skillDir, "SKILL.md");
+                         
+                         // 必须有 SKILL.md
+                         if (File.Exists(skillMdPath))
+                         {
+                             var lastWriteTime = File.GetLastWriteTimeUtc(skillMdPath);
+                             
+                             // 查找缓存
+                             var cached = existingZoneItems.FirstOrDefault(x => x.Name == skillName);
+                             
+                             if (cached != null && cached.LastWriteTimeUtc == lastWriteTime)
+                             {
+                                 // 未修改，使用缓存
+                                 zoneItems.Add(cached);
+                             }
+                             else
+                             {
+                                 // 新增或修改
+                                 var description = GetSkillDescription(skillMdPath);
+                                 var item = new SkillIndexItem
+                                 {
+                                     SkillId = ComputeSkillId(skillDir),
+                                     Name = skillName,
+                                     Path = skillDir,
+                                     SkillMdPath = skillMdPath,
+                                     LastWriteTimeUtc = lastWriteTime,
+                                     Description = description
+                                 };
+                                 zoneItems.Add(item);
+                             }
+                         }
+                     }
+                 }
+                 catch {}
+                 
+                 if (zoneItems.Count > 0)
+                 {
+                     newZones[zonePath] = zoneItems;
+                 }
             }
-
-            // 递归搜索
-            SearchAndAddSkillZones(project.Path, project, 3);
+            
+            // 更新索引
+            index.Zones = newZones;
+            index.LastScanTime = DateTime.UtcNow;
+            await SaveProjectIndexAsync(index);
+            
+            // 更新 UI
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                UpdateProjectUI(project, index);
+            });
         });
-
-        project.RefreshSkillCount();
     }
 
-    private void SearchAndAddSkillZones(string path, Project project, int depth)
+    private void CollectZonePathsRecursive(string path, HashSet<string> paths, int depth)
     {
         if (depth <= 0) return;
-
         try
         {
+            // 检查当前目录下的直接子目录
             foreach (var subDir in Directory.GetDirectories(path))
             {
                 var folderName = Path.GetFileName(subDir);
                 
                 if (folderName.StartsWith("."))
                 {
-                    var skillsPath = Path.Combine(subDir, "skills");
-                    if (Directory.Exists(skillsPath))
-                    {
-                        // 检查是否已添加
-                        var exists = false;
-                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            exists = project.SkillZones.Any(z => z.FullPath == subDir);
-                        });
-
-                        if (!exists)
-                        {
-                            var zone = new SkillZone
-                            {
-                                Name = folderName,
-                                FullPath = subDir
-                            };
-                            LoadSkillsInZone(zone);
-
-                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                project.SkillZones.Add(zone);
-                            });
-                        }
-                    }
+                    // 这是一个技能区候选
+                    paths.Add(subDir);
+                    // 不再深入技能区内部查找其他技能区
                     continue;
                 }
-
-                if (folderName == "node_modules" || folderName == "bin" || folderName == "obj")
+                
+                // 跳过忽略目录
+                if (folderName == "node_modules" || folderName == "bin" || folderName == "obj" || folderName == ".git")
                     continue;
 
-                SearchAndAddSkillZones(subDir, project, depth - 1);
+                // 递归
+                CollectZonePathsRecursive(subDir, paths, depth - 1);
             }
         }
         catch { }
     }
 
-    private void LoadSkillsInZone(SkillZone zone)
+    private void UpdateProjectUI(Project project, ProjectSkillIndex index)
     {
-        try
+        // 记录旧的展开状态
+        var oldExpandedStates = project.SkillZones.ToDictionary(z => z.FullPath, z => z.IsExpanded);
+        
+        project.SkillZones.Clear();
+        
+        foreach (var kvp in index.Zones)
         {
-            var skillsPath = zone.SkillsFolderPath;
-            if (!Directory.Exists(skillsPath)) return;
+            var zonePath = kvp.Key;
+            var skills = kvp.Value;
+            
+            var isExpanded = true;
+            if (oldExpandedStates.TryGetValue(zonePath, out var oldState))
+                isExpanded = oldState;
 
-            foreach (var skillDir in Directory.GetDirectories(skillsPath))
+            var zone = new SkillZone
             {
-                var skillMdPath = Path.Combine(skillDir, "SKILL.md");
-                if (File.Exists(skillMdPath))
+                Name = Path.GetFileName(zonePath),
+                FullPath = zonePath,
+                IsExpanded = isExpanded
+            };
+            
+            foreach (var s in skills)
+            {
+                zone.Skills.Add(new SkillFolder
                 {
-                    var skill = new SkillFolder
-                    {
-                        Name = Path.GetFileName(skillDir),
-                        FullPath = skillDir,
-                        Description = GetSkillDescription(skillMdPath),
-                        CreatedTime = Directory.GetCreationTime(skillDir)
-                    };
-
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        zone.Skills.Add(skill);
-                    });
-                }
+                    Name = s.Name,
+                    FullPath = s.Path,
+                    Description = s.Description,
+                    CreatedTime = s.LastWriteTimeUtc.ToLocalTime(),
+                    IsInLibrary = false 
+                });
             }
+            project.SkillZones.Add(zone);
         }
-        catch { }
+        project.RefreshSkillCount();
     }
 
     private string GetSkillDescription(string skillMdPath)

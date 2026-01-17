@@ -83,10 +83,8 @@ public partial class MainWindow : FluentWindow
         if (item.TargetPageType == typeof(LibraryPage))
         {
             var groupId = item.Tag as string;
-            if (!string.IsNullOrEmpty(groupId))
-            {
-                ViewModel.LibraryViewModel.SelectGroupById(groupId);
-            }
+            // 应用分组筛选（无论是否重新导航，都会使用同一个 LibraryPage 实例）
+            ViewModel.LibraryViewModel.SelectGroupById(groupId ?? string.Empty);
         }
     }
 
@@ -117,11 +115,7 @@ public partial class MainWindow : FluentWindow
             {
                 Content = group.Name,
                 TargetPageType = typeof(LibraryPage),
-                Tag = group.Id
-            };
-            item.MouseLeftButtonUp += (_, _) =>
-            {
-                ViewModel.LibraryViewModel.SelectGroupById(group.Id);
+                Tag = group.Id  // Tag 用于在 SelectionChanged 中识别分组
             };
             LibraryNavItem.MenuItems.Add(item);
         }
@@ -153,6 +147,7 @@ public class PageService : IPageService
     private readonly MainWindow _mainWindow;
     private readonly MainWindowViewModel _viewModel;
     private ProjectDetailPage? _projectDetailPage;
+    private LibraryPage? _libraryPage;
 
     public PageService(MainWindow mainWindow, MainWindowViewModel viewModel)
     {
@@ -177,7 +172,12 @@ public class PageService : IPageService
     {
         if (pageType == typeof(LibraryPage))
         {
-            return new LibraryPage(_viewModel.LibraryViewModel);
+            // 缓存 LibraryPage 实例，确保分组筛选功能正常工作
+            if (_libraryPage == null)
+            {
+                _libraryPage = new LibraryPage(_viewModel.LibraryViewModel);
+            }
+            return _libraryPage;
         }
         else if (pageType == typeof(ScanPage))
         {

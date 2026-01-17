@@ -45,9 +45,10 @@
         </ui:TitleBar>
 
         <!--  主内容区  -->
-        <ui:NavigationView
+        <local:SkillNavigationView
             x:Name="NavigationView"
             Grid.Row="1"
+            Style="{DynamicResource {x:Type ui:NavigationView}}"
             IsBackButtonVisible="Collapsed"
             IsPaneToggleVisible="True"
             OpenPaneLength="280"
@@ -79,6 +80,6 @@
                     TargetPageType="{x:Type local:SettingsPage}" />
             </ui:NavigationView.FooterMenuItems>
 
-        </ui:NavigationView>
+        </local:SkillNavigationView>
     </Grid>
 </ui:FluentWindow>

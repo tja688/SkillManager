@@ -72,13 +72,8 @@ public partial class MainWindow : FluentWindow
         NavigationView.Navigate(typeof(ProjectListPage));
     }
 
-    private void NavigationView_SelectionChanged(object sender, RoutedEventArgs e)
+    private void NavigationView_SelectionChanged(NavigationView navigationView, RoutedEventArgs e)
     {
-        if (sender is not NavigationView navigationView)
-        {
-            return;
-        }
-
         if (navigationView.SelectedItem is not NavigationViewItem item)
         {
             return;
@@ -145,6 +140,7 @@ public partial class MainWindow : FluentWindow
         }
 
         LibraryNavItem.IsExpanded = groups.Count > 0;
+        NavigationView.RegisterNestedMenuItems(LibraryNavItem.MenuItems);
     }
 
     private static NavigationViewItem? FindAncestorNavigationItem(DependencyObject? source)
@@ -238,4 +234,3 @@ public class PageService : IPageService
         return null;
     }
 }
-

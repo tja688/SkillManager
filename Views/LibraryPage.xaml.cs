@@ -21,6 +21,11 @@ public partial class LibraryPage : Page
         DataContext = ViewModel;
 
         InitializeComponent();
+
+        SkillsScrollViewer.AddHandler(
+            PreviewMouseWheelEvent,
+            new MouseWheelEventHandler(SkillsScrollViewer_PreviewMouseWheel),
+            true);
     }
 
     private void SkillCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -56,6 +61,11 @@ public partial class LibraryPage : Page
     {
         if (sender is ScrollViewer scrollViewer)
         {
+            if (scrollViewer.ScrollableHeight <= 0)
+            {
+                return;
+            }
+
             scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta);
             e.Handled = true;
         }

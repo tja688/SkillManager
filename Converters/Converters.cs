@@ -87,3 +87,45 @@ public class CountToBoolConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+
+/// <summary>
+/// 布尔值转展开/收起箭头符号
+/// </summary>
+public class BoolToChevronConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is bool isExpanded)
+        {
+            return isExpanded 
+                ? Wpf.Ui.Controls.SymbolRegular.ChevronUp24 
+                : Wpf.Ui.Controls.SymbolRegular.ChevronDown24;
+        }
+        return Wpf.Ui.Controls.SymbolRegular.ChevronDown24;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// 字符串非空时显示，空时隐藏
+/// </summary>
+public class StringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is string str)
+        {
+            return string.IsNullOrWhiteSpace(str) ? Visibility.Collapsed : Visibility.Visible;
+        }
+        return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}

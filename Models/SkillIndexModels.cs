@@ -36,6 +36,16 @@ public class SkillIndexItem
     /// 描述 (缓存)
     /// </summary>
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 技能标题（SKILL.md 中的一级标题）
+    /// </summary>
+    public string SkillTitle { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 使用场景说明（When to Use / 能做什么）
+    /// </summary>
+    public string WhenToUse { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -52,3 +62,13 @@ public class ProjectSkillIndex
     /// </summary>
     public Dictionary<string, List<SkillIndexItem>> Zones { get; set; } = new();
 }
+
+/// <summary>
+/// 技能库索引
+/// </summary>
+public class LibrarySkillIndex
+{
+    public DateTime LastScanTime { get; set; }
+    public List<SkillIndexItem> Skills { get; set; } = new();
+}
+

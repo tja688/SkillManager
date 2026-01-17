@@ -16,6 +16,8 @@
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
             <converters:CountToBoolConverter x:Key="CountToBoolConverter" />
+            <converters:BoolToChevronConverter x:Key="BoolToChevronConverter" />
+            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -17,6 +17,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly LibraryService _libraryService;
     private readonly SkillScannerService _scannerService;
     private readonly ProjectService _projectService;
+    private readonly GroupService _groupService;
 
     public MainWindowViewModel()
     {
@@ -26,10 +27,11 @@ public partial class MainWindowViewModel : ObservableObject
         _libraryService = new LibraryService(libraryPath);
         _scannerService = new SkillScannerService(libraryPath);
         _projectService = new ProjectService(baseDirectory, _libraryService);
+        _groupService = new GroupService(libraryPath);
 
         // 初始化子ViewModel
         ScanViewModel = new ScanViewModel(_scannerService, _libraryService);
-        LibraryViewModel = new LibraryViewModel(_libraryService);
+        LibraryViewModel = new LibraryViewModel(_libraryService, _groupService);
 
         // 初始加载
         LibraryViewModel.RefreshSkills();
@@ -38,6 +40,7 @@ public partial class MainWindowViewModel : ObservableObject
     public ScanViewModel ScanViewModel { get; }
     public LibraryViewModel LibraryViewModel { get; }
     public ProjectService ProjectService => _projectService;
+    public GroupService GroupService => _groupService;
 
     [ObservableProperty]
     private string _applicationTitle = "Skill Manager";

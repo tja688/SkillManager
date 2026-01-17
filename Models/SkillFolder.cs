@@ -39,6 +39,24 @@ public partial class SkillFolder : ObservableObject
     private bool _isInLibrary;
 
     /// <summary>
+    /// 技能标题（SKILL.md 中的一级标题）
+    /// </summary>
+    [ObservableProperty]
+    private string _skillTitle = string.Empty;
+
+    /// <summary>
+    /// 使用场景说明（When to Use / 能做什么）
+    /// </summary>
+    [ObservableProperty]
+    private string _whenToUse = string.Empty;
+
+    /// <summary>
+    /// 是否展开详情
+    /// </summary>
+    [ObservableProperty]
+    private bool _isExpanded;
+
+    /// <summary>
     /// SKILL.md文件的完整路径
     /// </summary>
     public string SkillMdPath => Path.Combine(FullPath, "SKILL.md");

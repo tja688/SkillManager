@@ -191,65 +191,78 @@
                                     </Grid>
                                 </Expander.Header>
 
-                                <!--  技能列表  -->
-                                <ItemsControl
-                                    Margin="16,8,16,16"
-                                    ItemsSource="{Binding Skills}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type models:SkillFolder}">
-                                            <Border
-                                                Margin="0,0,0,8"
-                                                Padding="12"
-                                                Background="{DynamicResource ControlFillColorSecondaryBrush}"
-                                                CornerRadius="6">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
+                                <!--  技能列表 - 使用独立ScrollViewer解决滚轮问题  -->
+                                <ScrollViewer
+                                    Margin="8,8,8,12"
+                                    MaxHeight="320"
+                                    HorizontalScrollBarVisibility="Disabled"
+                                    VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding Skills}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <!--  使用WrapPanel实现网格布局  -->
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type models:SkillFolder}">
+                                                <!--  矩形卡片式技能格子  -->
+                                                <Border
+                                                    Width="180"
+                                                    Margin="4"
+                                                    Padding="10"
+                                                    Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                                                    CornerRadius="8"
+                                                    ToolTip="{Binding Description}">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*" />
+                                                            <RowDefinition Height="Auto" />
+                                                        </Grid.RowDefinitions>
 
-                                                    <StackPanel Grid.Column="0">
+                                                        <!--  技能名称  -->
                                                         <TextBlock
-                                                            FontSize="14"
+                                                            Grid.Row="0"
+                                                            MaxHeight="40"
+                                                            FontSize="13"
                                                             FontWeight="SemiBold"
-                                                            Text="{Binding Name}" />
-                                                        <TextBlock
-                                                            Margin="0,4,0,0"
-                                                            FontSize="12"
-                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                            Text="{Binding Description}"
-                                                            TextTrimming="CharacterEllipsis" />
-                                                    </StackPanel>
+                                                            Text="{Binding Name}"
+                                                            TextTrimming="CharacterEllipsis"
+                                                            TextWrapping="Wrap" />
 
-                                                    <StackPanel
-                                                        Grid.Column="1"
-                                                        Orientation="Horizontal">
-                                                        <ui:Button
-                                                            Margin="0,0,4,0"
-                                                            Padding="6,4"
-                                                            Click="ViewSkillMd_Click"
-                                                            DataContext="{Binding}"
-                                                            Icon="{ui:SymbolIcon Document20}"
-                                                            ToolTip="查看 SKILL.md" />
-                                                        <ui:Button
-                                                            Margin="0,0,4,0"
-                                                            Padding="6,4"
-                                                            Click="OpenSkillFolder_Click"
-                                                            DataContext="{Binding}"
-                                                            Icon="{ui:SymbolIcon FolderOpen20}"
-                                                            ToolTip="打开文件夹" />
-                                                        <ui:Button
-                                                            Padding="6,4"
-                                                            Click="DeleteSkillFromZone_Click"
-                                                            DataContext="{Binding}"
-                                                            Icon="{ui:SymbolIcon Delete20}"
-                                                            ToolTip="删除技能" />
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                                        <!--  操作按钮组  -->
+                                                        <StackPanel
+                                                            Grid.Row="1"
+                                                            Margin="0,8,0,0"
+                                                            HorizontalAlignment="Center"
+                                                            Orientation="Horizontal">
+                                                            <ui:Button
+                                                                Margin="0,0,4,0"
+                                                                Padding="6,4"
+                                                                Click="ViewSkillMd_Click"
+                                                                DataContext="{Binding}"
+                                                                Icon="{ui:SymbolIcon Document16}"
+                                                                ToolTip="查看 SKILL.md" />
+                                                            <ui:Button
+                                                                Margin="0,0,4,0"
+                                                                Padding="6,4"
+                                                                Click="OpenSkillFolder_Click"
+                                                                DataContext="{Binding}"
+                                                                Icon="{ui:SymbolIcon FolderOpen16}"
+                                                                ToolTip="打开文件夹" />
+                                                            <ui:Button
+                                                                Padding="6,4"
+                                                                Click="DeleteSkillFromZone_Click"
+                                                                DataContext="{Binding}"
+                                                                Icon="{ui:SymbolIcon Delete16}"
+                                                                ToolTip="删除技能" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
                             </Expander>
                         </ui:Card>
                     </DataTemplate>

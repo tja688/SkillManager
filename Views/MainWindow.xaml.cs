@@ -18,6 +18,9 @@ public partial class MainWindow : FluentWindow
     private readonly PageService _pageService;
     private Project? _currentDetailProject;
 
+    // Lock is no longer needed
+    // private bool _lockedSelection = false;
+
     public MainWindow()
     {
         ViewModel = new MainWindowViewModel();
@@ -35,7 +38,8 @@ public partial class MainWindow : FluentWindow
         Loaded += (s, e) =>
         {
             RefreshLibraryNavigationGroups();
-            NavigationView.Navigate(typeof(LibraryPage));
+            RefreshLibraryNavigationGroups();
+            NavigationView.Navigate(typeof(AllSkillsPage));
         };
     }
 
@@ -80,11 +84,22 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        if (item.TargetPageType == typeof(LibraryPage))
+        // Child Check (Groups) - TargetPageType: LibraryPage
+        if (LibraryNavItem.MenuItems.Contains(item))
         {
-            var groupId = item.Tag as string;
-            // 应用分组筛选（无论是否重新导航，都会使用同一个 LibraryPage 实例）
-            ViewModel.LibraryViewModel.SelectGroupById(groupId ?? string.Empty);
+             var groupId = item.Tag as string;
+             ViewModel.LibraryViewModel.SelectGroupById(groupId);
+             // No manual navigation needed, TargetPageType handles it
+             // And since type is LibraryPage != AllSkillsPage, Parent won't be auto-selected
+             return;
+        }
+        
+        // Parent Check ("Skill Library") - TargetPageType: AllSkillsPage
+        if (item == LibraryNavItem)
+        {
+             // When this is selected (either mainly or auto if we are on AllSkillsPage),
+             // we want to show all skills.
+             ViewModel.LibraryViewModel.SelectGroupById(string.Empty);
         }
     }
 
@@ -96,7 +111,16 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        ViewModel.LibraryViewModel.SelectGroupById(string.Empty);
+        // Parent Click: Just ensure we go to AllSkillsPage which selects Parent
+        // SelectionChanged will handle the filter reset
+        // If we are already there, we might need to force reset if filter was somehow changed?
+        // But Filter is bound to selection. So just navigating/selecting is enough.
+        // If we are already selected, SelectionChanged won't fire.
+        // So we explicitly reset here just in case.
+        if (NavigationView.SelectedItem == LibraryNavItem)
+        {
+             ViewModel.LibraryViewModel.SelectGroupById(string.Empty);
+        }
     }
 
     private void RefreshLibraryNavigationGroups()
@@ -178,6 +202,13 @@ public class PageService : IPageService
                 _libraryPage = new LibraryPage(_viewModel.LibraryViewModel);
             }
             return _libraryPage;
+        }
+        else if (pageType == typeof(AllSkillsPage))
+        {
+             // AllSkillsPage is just a wrapper for LibraryPage visual
+             // BUT we need it to be a distinct instance or type for NavigationView to work.
+             // We can return a NEW instance of AllSkillsPage
+             return new AllSkillsPage(_viewModel.LibraryViewModel);
         }
         else if (pageType == typeof(ScanPage))
         {

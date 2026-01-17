@@ -61,7 +61,7 @@
                     Icon="{ui:SymbolIcon Library24}"
                     Tag=""
                     MouseLeftButtonUp="LibraryNavItem_MouseLeftButtonUp"
-                    TargetPageType="{x:Type local:LibraryPage}" />
+                    TargetPageType="{x:Type local:AllSkillsPage}" />
                 <ui:NavigationViewItem
                     Content="扫描导入"
                     Icon="{ui:SymbolIcon Search24}"

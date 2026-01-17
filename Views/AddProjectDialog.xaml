@@ -1,0 +1,183 @@
+<ui:FluentWindow
+    x:Class="SkillManager.Views.AddProjectDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="clr-namespace:SkillManager.Models"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="添加项目"
+    Width="600"
+    Height="500"
+    ExtendsContentIntoTitleBar="True"
+    ResizeMode="NoResize"
+    WindowBackdropType="Mica"
+    WindowStartupLocation="CenterOwner"
+    mc:Ignorable="d">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  标题  -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock
+                FontSize="20"
+                FontWeight="SemiBold"
+                Text="添加项目" />
+            <TextBlock
+                Margin="0,4,0,0"
+                FontSize="13"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="创建一个新项目来管理技能" />
+        </StackPanel>
+
+        <!--  项目名称  -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <TextBlock
+                Margin="0,0,0,8"
+                FontSize="13"
+                FontWeight="SemiBold"
+                Text="项目名称" />
+            <ui:TextBox
+                x:Name="ProjectNameTextBox"
+                PlaceholderText="输入项目名称..." />
+        </StackPanel>
+
+        <!--  项目路径  -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,16">
+            <TextBlock
+                Margin="0,0,0,8"
+                FontSize="13"
+                FontWeight="SemiBold"
+                Text="项目路径" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBox
+                    x:Name="ProjectPathTextBox"
+                    Grid.Column="0"
+                    IsReadOnly="True"
+                    PlaceholderText="选择项目路径..." />
+                <ui:Button
+                    Grid.Column="1"
+                    Margin="8,0,0,0"
+                    Click="BrowsePath_Click"
+                    Icon="{ui:SymbolIcon FolderOpen24}">
+                    浏览
+                </ui:Button>
+            </Grid>
+        </StackPanel>
+
+        <!--  技能区预览  -->
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel
+                Grid.Row="0"
+                Margin="0,0,0,8"
+                Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,8,0"
+                    VerticalAlignment="Center"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Text="检测到的技能区" />
+                <ui:LoadingScreen
+                    x:Name="LoadingIndicator"
+                    Width="16"
+                    Height="16"
+                    Visibility="Collapsed" />
+            </StackPanel>
+
+            <Border
+                Grid.Row="1"
+                Padding="12"
+                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                CornerRadius="8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="SkillZonesPreviewList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:SkillZonePreview}">
+                                <Border
+                                    Margin="0,0,0,8"
+                                    Padding="12,8"
+                                    Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                                    CornerRadius="6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock
+                                                FontSize="14"
+                                                FontWeight="SemiBold"
+                                                Text="{Binding Name}" />
+                                            <TextBlock
+                                                Margin="0,2,0,0"
+                                                FontSize="11"
+                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                Text="{Binding Path}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+
+                                        <Border
+                                            Grid.Column="1"
+                                            Padding="8,4"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="10">
+                                            <TextBlock
+                                                FontSize="12"
+                                                Foreground="White"
+                                                Text="{Binding SkillCount, StringFormat={}{0} 技能}" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <!--  空状态  -->
+            <TextBlock
+                x:Name="EmptyPreviewText"
+                Grid.Row="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                FontSize="13"
+                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                Text="选择路径后将显示检测到的技能区"
+                Visibility="Visible" />
+        </Grid>
+
+        <!--  按钮  -->
+        <StackPanel
+            Grid.Row="4"
+            Margin="0,24,0,0"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal">
+            <ui:Button Margin="0,0,8,0" Click="Cancel_Click">取消</ui:Button>
+            <ui:Button
+                x:Name="ConfirmButton"
+                Appearance="Primary"
+                Click="Confirm_Click"
+                IsEnabled="False">
+                创建项目
+            </ui:Button>
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

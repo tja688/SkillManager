@@ -1,0 +1,63 @@
+<ui:FluentWindow
+    x:Class="SkillManager.Views.AddSkillZoneDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="添加技能区"
+    Width="400"
+    Height="200"
+    ExtendsContentIntoTitleBar="True"
+    ResizeMode="NoResize"
+    WindowBackdropType="Mica"
+    WindowStartupLocation="CenterOwner"
+    mc:Ignorable="d">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  标题  -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock
+                FontSize="18"
+                FontWeight="SemiBold"
+                Text="添加技能区" />
+            <TextBlock
+                Margin="0,4,0,0"
+                FontSize="12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="技能区名称应以「.」开头，如 .claude、.codex" />
+        </StackPanel>
+
+        <!--  输入  -->
+        <StackPanel Grid.Row="1">
+            <TextBlock
+                Margin="0,0,0,8"
+                FontSize="13"
+                FontWeight="SemiBold"
+                Text="技能区名称" />
+            <ui:TextBox
+                x:Name="ZoneNameTextBox"
+                PlaceholderText=".agent" />
+        </StackPanel>
+
+        <!--  按钮  -->
+        <StackPanel
+            Grid.Row="2"
+            Margin="0,16,0,0"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal">
+            <ui:Button Margin="0,0,8,0" Click="Cancel_Click">取消</ui:Button>
+            <ui:Button
+                Appearance="Primary"
+                Click="Confirm_Click">
+                创建
+            </ui:Button>
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

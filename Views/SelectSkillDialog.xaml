@@ -1,0 +1,116 @@
+<ui:FluentWindow
+    x:Class="SkillManager.Views.SelectSkillDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="clr-namespace:SkillManager.Models"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="选择技能"
+    Width="500"
+    Height="550"
+    ExtendsContentIntoTitleBar="True"
+    ResizeMode="NoResize"
+    WindowBackdropType="Mica"
+    WindowStartupLocation="CenterOwner"
+    mc:Ignorable="d">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  标题  -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock
+                FontSize="18"
+                FontWeight="SemiBold"
+                Text="选择技能" />
+            <TextBlock
+                Margin="0,4,0,0"
+                FontSize="12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="从仓库中选择一个技能添加" />
+        </StackPanel>
+
+        <!--  搜索框  -->
+        <ui:TextBox
+            x:Name="SearchTextBox"
+            Grid.Row="1"
+            Margin="0,0,0,16"
+            Icon="{ui:SymbolIcon Search24}"
+            PlaceholderText="搜索技能..."
+            TextChanged="SearchTextBox_TextChanged" />
+
+        <!--  技能列表  -->
+        <Border
+            Grid.Row="2"
+            Background="{DynamicResource ControlFillColorDefaultBrush}"
+            CornerRadius="8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="SkillsList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:SkillFolder}">
+                            <Border
+                                Margin="8,4"
+                                Padding="12"
+                                Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                                CornerRadius="6"
+                                Cursor="Hand"
+                                MouseLeftButtonUp="SkillItem_Click">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock
+                                            FontSize="14"
+                                            FontWeight="SemiBold"
+                                            Text="{Binding Name}" />
+                                        <TextBlock
+                                            Margin="0,4,0,0"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                            Text="{Binding Description}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+
+                                    <ui:SymbolIcon
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                        Symbol="ChevronRight24" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!--  空状态  -->
+        <TextBlock
+            x:Name="EmptyText"
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            FontSize="13"
+            Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+            Text="仓库中暂无技能"
+            Visibility="Collapsed" />
+
+        <!--  按钮  -->
+        <StackPanel
+            Grid.Row="3"
+            Margin="0,16,0,0"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal">
+            <ui:Button Click="Cancel_Click">取消</ui:Button>
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

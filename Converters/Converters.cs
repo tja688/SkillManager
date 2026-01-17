@@ -134,3 +134,32 @@ public class StringToVisibilityConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+
+/// <summary>
+/// 宽度转列数（用于卡片布局自适应）
+/// </summary>
+public class WidthToColumnsConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is double width && width > 0)
+        {
+            var minCardWidth = 260d;
+            if (parameter != null && double.TryParse(parameter.ToString(), out var parsed))
+            {
+                minCardWidth = parsed;
+            }
+
+            var spacing = 16d;
+            var columns = (int)Math.Floor((width + spacing) / (minCardWidth + spacing));
+            return Math.Max(1, columns);
+        }
+
+        return 1;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}

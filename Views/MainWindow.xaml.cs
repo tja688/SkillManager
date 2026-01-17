@@ -2,6 +2,8 @@ using SkillManager.Models;
 using SkillManager.ViewModels;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 
@@ -80,8 +82,23 @@ public partial class MainWindow : FluentWindow
 
         if (item.TargetPageType == typeof(LibraryPage))
         {
-            ViewModel.LibraryViewModel.SelectGroupById(item.Tag as string);
+            var groupId = item.Tag as string;
+            if (!string.IsNullOrEmpty(groupId))
+            {
+                ViewModel.LibraryViewModel.SelectGroupById(groupId);
+            }
         }
+    }
+
+    private void LibraryNavItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var clickedItem = FindAncestorNavigationItem(e.OriginalSource as DependencyObject);
+        if (clickedItem != null && !ReferenceEquals(clickedItem, sender))
+        {
+            return;
+        }
+
+        ViewModel.LibraryViewModel.SelectGroupById(string.Empty);
     }
 
     private void RefreshLibraryNavigationGroups()
@@ -96,15 +113,35 @@ public partial class MainWindow : FluentWindow
 
         foreach (var group in groups)
         {
-            LibraryNavItem.MenuItems.Add(new NavigationViewItem
+            var item = new NavigationViewItem
             {
                 Content = group.Name,
                 TargetPageType = typeof(LibraryPage),
                 Tag = group.Id
-            });
+            };
+            item.MouseLeftButtonUp += (_, _) =>
+            {
+                ViewModel.LibraryViewModel.SelectGroupById(group.Id);
+            };
+            LibraryNavItem.MenuItems.Add(item);
         }
 
         LibraryNavItem.IsExpanded = groups.Count > 0;
+    }
+
+    private static NavigationViewItem? FindAncestorNavigationItem(DependencyObject? source)
+    {
+        while (source != null)
+        {
+            if (source is NavigationViewItem navigationItem)
+            {
+                return navigationItem;
+            }
+
+            source = VisualTreeHelper.GetParent(source);
+        }
+
+        return null;
     }
 }
 

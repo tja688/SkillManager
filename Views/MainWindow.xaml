@@ -60,6 +60,7 @@
                     Content="技能库"
                     Icon="{ui:SymbolIcon Library24}"
                     Tag=""
+                    MouseLeftButtonUp="LibraryNavItem_MouseLeftButtonUp"
                     TargetPageType="{x:Type local:LibraryPage}" />
                 <ui:NavigationViewItem
                     Content="扫描导入"

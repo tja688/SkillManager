@@ -18,6 +18,7 @@
             <converters:CountToBoolConverter x:Key="CountToBoolConverter" />
             <converters:BoolToChevronConverter x:Key="BoolToChevronConverter" />
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+            <converters:WidthToColumnsConverter x:Key="WidthToColumnsConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

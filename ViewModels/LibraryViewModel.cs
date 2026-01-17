@@ -77,10 +77,19 @@ public partial class LibraryViewModel : ObservableObject
         }
 
         var resolvedId = groupId ?? string.Empty;
-        var match = Groups.FirstOrDefault(g => g.Id == resolvedId) ?? Groups.FirstOrDefault();
-        if (match != null && SelectedGroup?.Id != match.Id)
+        var match = Groups.FirstOrDefault(g => g.Id == resolvedId)
+                    ?? Groups.FirstOrDefault(g => g.Name.Equals(resolvedId, StringComparison.OrdinalIgnoreCase))
+                    ?? Groups.FirstOrDefault();
+        if (match != null)
         {
-            SelectedGroup = match;
+            if (!ReferenceEquals(SelectedGroup, match))
+            {
+                SelectedGroup = match;
+            }
+            else
+            {
+                ApplyFilter();
+            }
         }
 
         _pendingGroupId = null;
@@ -157,7 +166,10 @@ public partial class LibraryViewModel : ObservableObject
 
         if (SelectedGroup != null && !string.IsNullOrEmpty(SelectedGroup.Id))
         {
-            filtered = filtered.Where(s => SelectedGroup.SkillNames.Contains(s.Name));
+            var skillNameSet = new HashSet<string>(
+                SelectedGroup.SkillNames ?? new List<string>(),
+                StringComparer.OrdinalIgnoreCase);
+            filtered = filtered.Where(s => skillNameSet.Contains(s.Name));
         }
 
         if (!string.IsNullOrWhiteSpace(SearchText))

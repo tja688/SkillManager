@@ -65,9 +65,46 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static TranslationService CreateTranslationService(string baseDirectory, string libraryPath)
     {
-        var modelDirectory = Path.Combine(baseDirectory, "models", "translation");
-        var (settings, modelConfig) = TranslationSettingsLoader.Load(modelDirectory, libraryPath);
         var cachePath = Path.Combine(libraryPath, ".translation_cache.json");
+
+        // 从配置文件或环境变量读取翻译服务地址
+        var translationServiceUrl = Environment.GetEnvironmentVariable("TRANSLATION_SERVICE_URL") 
+            ?? "http://localhost:5123";
+
+        // 创建翻译设置
+        var settings = new TranslationSettings
+        {
+            EngineId = "remote-translation",
+            EngineVersion = "v1",
+            SourceLang = "en",
+            TargetLang = "zh-CN",
+            MaxConcurrency = 2,
+            MaxLength = 256,
+            Timeout = TimeSpan.FromSeconds(60),
+            EnableTranslation = true
+        };
+
+        // 尝试从 .translation_meta.json 读取配置覆盖
+        var metaPath = Path.Combine(libraryPath, ".translation_meta.json");
+        if (File.Exists(metaPath))
+        {
+            try
+            {
+                var json = File.ReadAllText(metaPath);
+                var meta = System.Text.Json.JsonSerializer.Deserialize<TranslationMeta>(json);
+                if (meta != null)
+                {
+                    settings.EnableTranslation = !meta.DisableTranslation;
+                    if (meta.MaxConcurrency.HasValue) settings.MaxConcurrency = meta.MaxConcurrency.Value;
+                    if (meta.MaxLength.HasValue) settings.MaxLength = meta.MaxLength.Value;
+                    if (!string.IsNullOrWhiteSpace(meta.EngineVersion)) settings.EngineVersion = meta.EngineVersion;
+                }
+            }
+            catch
+            {
+                // 忽略配置读取错误
+            }
+        }
 
         var protectedTerms = new[]
         {
@@ -91,7 +128,12 @@ public partial class MainWindowViewModel : ObservableObject
 
         var protector = new TranslationTermProtector(protectedTerms, mappedPhrases);
         var cacheStore = new TranslationCacheStore(cachePath);
-        var provider = new OnnxMarianProvider(modelConfig);
+        
+        // 使用远程翻译服务
+        var provider = new RemoteTranslationProvider(translationServiceUrl, (int)settings.Timeout.TotalSeconds);
+        
+        DebugService.Instance.Log("Translation", $"Using remote translation service: {translationServiceUrl}", "MainWindowViewModel", DebugLogLevel.Info);
+        
         return new TranslationService(cacheStore, provider, settings, protector);
     }
 }

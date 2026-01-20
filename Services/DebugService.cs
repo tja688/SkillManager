@@ -132,6 +132,39 @@ public class DebugService
             Description = "追踪 ScrollViewer 的 ScrollableHeight 和 VerticalOffset 变化",
             Category = "ScrollViewer 调试"
         });
+
+        // 卡片样式调试选项
+        DebugOptions.Add(new DebugOption
+        {
+            Id = "card_render_tracking",
+            Name = "卡片渲染追踪",
+            Description = "追踪 ui:Card 控件的 Loaded 事件，检测卡片是否正确渲染",
+            Category = "卡片样式调试"
+        });
+
+        DebugOptions.Add(new DebugOption
+        {
+            Id = "card_style_inspection",
+            Name = "卡片样式检查",
+            Description = "检查卡片的 Background、BorderBrush 等样式属性的实际值",
+            Category = "卡片样式调试"
+        });
+
+        DebugOptions.Add(new DebugOption
+        {
+            Id = "card_layout_tracking",
+            Name = "卡片布局追踪",
+            Description = "追踪卡片的 ActualWidth、ActualHeight、Margin、Padding 等布局属性",
+            Category = "卡片样式调试"
+        });
+
+        DebugOptions.Add(new DebugOption
+        {
+            Id = "card_resource_resolution",
+            Name = "卡片资源解析追踪",
+            Description = "检查 DynamicResource 是否正确解析为 Brush 对象",
+            Category = "卡片样式调试"
+        });
     }
 
     /// <summary>
@@ -349,6 +382,135 @@ public class DebugService
 
         parts.Reverse();
         return string.Join(" > ", parts);
+    }
+
+    #endregion
+
+    #region 卡片样式调试辅助方法
+
+    /// <summary>
+    /// 追踪卡片渲染事件
+    /// </summary>
+    public void TrackCardRender(FrameworkElement card, string skillName)
+    {
+        if (!IsOptionEnabled("card_render_tracking")) return;
+
+        var actualWidth = card.ActualWidth;
+        var actualHeight = card.ActualHeight;
+        var isLoaded = card.IsLoaded;
+        var visibility = card.Visibility;
+
+        Log("Card-Render",
+            $"Skill: {skillName}, IsLoaded: {isLoaded}, Visibility: {visibility}, Size: {actualWidth:F0}x{actualHeight:F0}",
+            card.GetType().Name,
+            DebugLogLevel.Event);
+    }
+
+    /// <summary>
+    /// 检查卡片样式属性
+    /// </summary>
+    public void TrackCardStyle(System.Windows.Controls.Control card, string skillName)
+    {
+        if (!IsOptionEnabled("card_style_inspection")) return;
+
+        var background = card.Background;
+        var borderBrush = card.BorderBrush;
+        var borderThickness = card.BorderThickness;
+
+        string bgInfo = GetBrushInfo(background);
+        string borderInfo = GetBrushInfo(borderBrush);
+
+        Log("Card-Style",
+            $"Skill: {skillName}\n  Background: {bgInfo}\n  BorderBrush: {borderInfo}\n  BorderThickness: {borderThickness}",
+            card.GetType().Name,
+            background == null ? DebugLogLevel.Warning : DebugLogLevel.Info);
+    }
+
+    /// <summary>
+    /// 追踪卡片布局
+    /// </summary>
+    public void TrackCardLayout(FrameworkElement card, string skillName)
+    {
+        if (!IsOptionEnabled("card_layout_tracking")) return;
+
+        var margin = card.Margin;
+        var actualWidth = card.ActualWidth;
+        var actualHeight = card.ActualHeight;
+        var renderTransform = card.RenderTransform;
+
+        string transformInfo = "None";
+        if (renderTransform != null && renderTransform != Transform.Identity)
+        {
+            transformInfo = renderTransform.GetType().Name;
+        }
+
+        Log("Card-Layout",
+            $"Skill: {skillName}, Size: {actualWidth:F0}x{actualHeight:F0}, Margin: {margin}, Transform: {transformInfo}",
+            card.GetType().Name,
+            DebugLogLevel.Info);
+    }
+
+    /// <summary>
+    /// 检查资源解析
+    /// </summary>
+    public void TrackResourceResolution(FrameworkElement element, string resourceName)
+    {
+        if (!IsOptionEnabled("card_resource_resolution")) return;
+
+        object? resource = null;
+        try
+        {
+            resource = element.TryFindResource(resourceName);
+        }
+        catch (Exception ex)
+        {
+            Log("Card-ResourceResolution",
+                $"Resource: {resourceName} - Exception: {ex.Message}",
+                element.GetType().Name,
+                DebugLogLevel.Error);
+            return;
+        }
+
+        if (resource == null)
+        {
+            Log("Card-ResourceResolution",
+                $"Resource: {resourceName} - NOT FOUND (null)",
+                element.GetType().Name,
+                DebugLogLevel.Warning);
+        }
+        else
+        {
+            string brushInfo = resource is System.Windows.Media.Brush brush ? GetBrushInfo(brush) : resource.GetType().Name;
+            Log("Card-ResourceResolution",
+                $"Resource: {resourceName} - Resolved: {brushInfo}",
+                element.GetType().Name,
+                DebugLogLevel.Info);
+        }
+    }
+
+    /// <summary>
+    /// 获取画刷详细信息
+    /// </summary>
+    private static string GetBrushInfo(System.Windows.Media.Brush? brush)
+    {
+        if (brush == null)
+            return "NULL";
+
+        if (brush is SolidColorBrush scb)
+        {
+            var color = scb.Color;
+            return $"SolidColorBrush(#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}, Opacity={scb.Opacity:F2})";
+        }
+        else if (brush is LinearGradientBrush lgb)
+        {
+            return $"LinearGradientBrush(Stops={lgb.GradientStops.Count}, Opacity={lgb.Opacity:F2})";
+        }
+        else if (brush is RadialGradientBrush rgb)
+        {
+            return $"RadialGradientBrush(Stops={rgb.GradientStops.Count}, Opacity={rgb.Opacity:F2})";
+        }
+
+        return $"{brush.GetType().Name}(Opacity={brush.Opacity:F2})";
     }
 
     #endregion

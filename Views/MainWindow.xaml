@@ -12,6 +12,7 @@
     Height="800"
     MinWidth="900"
     MinHeight="600"
+    Icon="pack://application:,,,/Assets/icon.png"
     d:DataContext="{d:DesignInstance vm:MainWindowViewModel}"
     ExtendsContentIntoTitleBar="True"
     WindowBackdropType="Mica"

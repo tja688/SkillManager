@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -7,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,12 +19,14 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.18.0" />
     <PackageReference Include="Microsoft.ML.Tokenizers" Version="0.22.0" />
     <PackageReference Include="WPF-UI" Version="3.0.5" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="library\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Resource Include="Assets\icon.png" />
+    <Resource Include="Assets\icon.ico" />
   </ItemGroup>
-
 </Project>

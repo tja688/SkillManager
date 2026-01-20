@@ -1,4 +1,5 @@
 using SkillManager.Models;
+using SkillManager.Services;
 using SkillManager.ViewModels;
 using System.Linq;
 using System.Windows;
@@ -16,15 +17,15 @@ public partial class MainWindow : FluentWindow
 {
     public MainWindowViewModel ViewModel { get; }
     private readonly PageService _pageService;
+    private readonly DebugService _debugService;
     private Project? _currentDetailProject;
-
-    // Lock is no longer needed
-    // private bool _lockedSelection = false;
+    private DebugWindow? _debugWindow;
 
     public MainWindow()
     {
         ViewModel = new MainWindowViewModel();
         DataContext = ViewModel;
+        _debugService = DebugService.Instance;
 
         InitializeComponent();
 
@@ -34,6 +35,9 @@ public partial class MainWindow : FluentWindow
 
         ViewModel.LibraryViewModel.GroupsRefreshed += RefreshLibraryNavigationGroups;
 
+        // 注册全局滚轮事件追踪（调试用）
+        SetupDebugEventTracking();
+
         // 默认导航到Library页面
         Loaded += (s, e) =>
         {
@@ -41,6 +45,69 @@ public partial class MainWindow : FluentWindow
             RefreshLibraryNavigationGroups();
             NavigationView.Navigate(typeof(AllSkillsPage));
         };
+    }
+
+    /// <summary>
+    /// 设置调试事件追踪
+    /// </summary>
+    private void SetupDebugEventTracking()
+    {
+        // 第一层：全局鼠标滚轮路由追踪
+        this.PreviewMouseWheel += (s, e) =>
+        {
+            var hoveredElement = Mouse.DirectlyOver;
+            _debugService.TrackGlobalMouseWheel(e, hoveredElement);
+        };
+
+        // 焦点追踪
+        this.GotKeyboardFocus += (s, e) =>
+        {
+            _debugService.TrackFocusChange("KeyboardFocus", e.OldFocus, e.NewFocus);
+        };
+
+        this.LostKeyboardFocus += (s, e) =>
+        {
+            _debugService.TrackFocusChange("KeyboardFocus-Lost", e.OldFocus, e.NewFocus);
+        };
+
+        // 鼠标移动时追踪可视化树（限制频率）
+        System.DateTime lastVisualTreeTrack = System.DateTime.MinValue;
+        this.PreviewMouseMove += (s, e) =>
+        {
+            if (_debugService.IsOptionEnabled("scroll_visual_tree"))
+            {
+                var now = System.DateTime.Now;
+                if ((now - lastVisualTreeTrack).TotalSeconds >= 2) // 每2秒最多记录一次
+                {
+                    var element = e.OriginalSource as DependencyObject;
+                    if (element != null)
+                    {
+                        _debugService.TrackVisualTree(element, "MouseMove");
+                        lastVisualTreeTrack = now;
+                    }
+                }
+            }
+        };
+    }
+
+    /// <summary>
+    /// 打开调试窗口
+    /// </summary>
+    private void DebugButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_debugWindow == null || !_debugWindow.IsLoaded)
+        {
+            _debugWindow = new DebugWindow
+            {
+                Owner = this
+            };
+            _debugWindow.Closed += (s, args) => _debugWindow = null;
+            _debugWindow.Show();
+        }
+        else
+        {
+            _debugWindow.Activate();
+        }
     }
 
     /// <summary>

@@ -40,6 +40,19 @@
                         FontSize="14"
                         FontWeight="SemiBold"
                         Text="Skill Manager" />
+                    <!-- 调试工具入口按钮 -->
+                    <ui:Button
+                        x:Name="DebugButton"
+                        Margin="16,0,0,0"
+                        Padding="8,4"
+                        Appearance="Transparent"
+                        ToolTip="打开调试工具"
+                        Click="DebugButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Bug24" FontSize="14" />
+                            <TextBlock Text="Debug" Margin="4,0,0,0" FontSize="12" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ui:Button>
                 </StackPanel>
             </ui:TitleBar.Header>
         </ui:TitleBar>

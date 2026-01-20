@@ -16,6 +16,7 @@ public partial class LibraryViewModel : ObservableObject
 {
     private readonly LibraryService _libraryService;
     private readonly GroupService _groupService;
+    private readonly DebugService _debugService;
     private readonly List<SkillFolder> _allSkills = new();
     private string? _pendingGroupId;
 
@@ -23,6 +24,7 @@ public partial class LibraryViewModel : ObservableObject
     {
         _libraryService = libraryService;
         _groupService = groupService;
+        _debugService = DebugService.Instance;
         
         Skills = new ObservableCollection<SkillFolder>();
         Groups = new ObservableCollection<SkillGroup>();
@@ -58,14 +60,57 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasSelection;
 
-    partial void OnSelectedGroupChanged(SkillGroup? value)
+    partial void OnSelectedGroupChanged(SkillGroup? oldValue, SkillGroup? newValue)
     {
+        // 第三层：ViewModel 状态追踪
+        _debugService.TrackViewModelState(
+            "LibraryViewModel",
+            "SelectedGroup",
+            oldValue?.Name ?? "null",
+            newValue?.Name ?? "null");
+
         ApplyFilter();
     }
 
     partial void OnSearchTextChanged(string value)
     {
+        _debugService.TrackViewModelState(
+            "LibraryViewModel",
+            "SearchText",
+            null,
+            value);
+
         ApplyFilter();
+    }
+
+    partial void OnIsLoadingChanged(bool oldValue, bool newValue)
+    {
+        // 追踪 IsLoading 状态变化（可能影响 UI 交互）
+        _debugService.TrackViewModelState(
+            "LibraryViewModel",
+            "IsLoading",
+            oldValue,
+            newValue);
+
+        // 如果 IsLoading 为 true，可能会禁用某些控件
+        if (newValue)
+        {
+            _debugService.LogIfEnabled(
+                "scroll_viewmodel_state",
+                "ViewModel-Loading",
+                "IsLoading = true - UI交互可能受限",
+                "LibraryViewModel",
+                DebugLogLevel.Warning);
+        }
+    }
+
+    partial void OnFilteredSkillsChanged(ObservableCollection<SkillFolder>? oldValue, ObservableCollection<SkillFolder>? newValue)
+    {
+        _debugService.TrackViewModelState(
+            "LibraryViewModel",
+            "FilteredSkills.Count",
+            oldValue?.Count ?? 0,
+            newValue?.Count ?? 0);
     }
 
     public void SelectGroupById(string? groupId)
@@ -101,6 +146,13 @@ public partial class LibraryViewModel : ObservableObject
         try
         {
             IsLoading = true;
+
+            _debugService.LogIfEnabled(
+                "scroll_viewmodel_state",
+                "ViewModel-Refresh",
+                "Starting skill refresh...",
+                "LibraryViewModel",
+                DebugLogLevel.Info);
             
             var groups = await _groupService.GetAllGroupsAsync();
             Groups.Clear();
@@ -117,12 +169,25 @@ public partial class LibraryViewModel : ObservableObject
             _allSkills.AddRange(await _libraryService.GetAllSkillsAsync(true));
             ApplyGroupDisplay(_allSkills, groups);
 
+            _debugService.LogIfEnabled(
+                "scroll_viewmodel_state",
+                "ViewModel-Refresh",
+                $"Loaded {_allSkills.Count} skills",
+                "LibraryViewModel",
+                DebugLogLevel.Info);
+
             ApplyFilter();
             GroupsRefreshed?.Invoke();
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Error loading skills: {ex.Message}");
+            _debugService.LogIfEnabled(
+                "scroll_viewmodel_state",
+                "ViewModel-Error",
+                $"Error loading skills: {ex.Message}",
+                "LibraryViewModel",
+                DebugLogLevel.Error);
         }
         finally
         {
@@ -180,11 +245,28 @@ public partial class LibraryViewModel : ObservableObject
                 (s.SkillTitle?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
+        var filteredList = filtered.ToList();
+
+        _debugService.LogIfEnabled(
+            "scroll_viewmodel_state",
+            "ViewModel-Filter",
+            $"Applied filter: {filteredList.Count} skills matched (Group: {SelectedGroup?.Name ?? "All"}, Search: '{SearchText}')",
+            "LibraryViewModel",
+            DebugLogLevel.Info);
+
         FilteredSkills.Clear();
-        foreach (var skill in filtered)
+        foreach (var skill in filteredList)
         {
             FilteredSkills.Add(skill);
         }
+
+        // 记录筛选后的状态（可能影响 ScrollViewer 的可滚动高度）
+        _debugService.LogIfEnabled(
+            "scroll_scrollable_height",
+            "ViewModel-FilterComplete",
+            $"FilteredSkills.Count = {FilteredSkills.Count} - ScrollViewer 内容已更新",
+            "LibraryViewModel",
+            DebugLogLevel.Info);
     }
 
     [RelayCommand]

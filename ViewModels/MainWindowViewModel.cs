@@ -18,6 +18,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly SkillScannerService _scannerService;
     private readonly ProjectService _projectService;
     private readonly GroupService _groupService;
+    private readonly TranslationService _translationService;
 
     public MainWindowViewModel()
     {
@@ -28,10 +29,11 @@ public partial class MainWindowViewModel : ObservableObject
         _scannerService = new SkillScannerService(libraryPath);
         _projectService = new ProjectService(baseDirectory, _libraryService);
         _groupService = new GroupService(libraryPath);
+        _translationService = CreateTranslationService(baseDirectory, libraryPath);
 
         // 初始化子ViewModel
         ScanViewModel = new ScanViewModel(_scannerService, _libraryService);
-        LibraryViewModel = new LibraryViewModel(_libraryService, _groupService);
+        LibraryViewModel = new LibraryViewModel(_libraryService, _groupService, _translationService);
 
         // 初始加载
         LibraryViewModel.RefreshSkills();
@@ -59,5 +61,37 @@ public partial class MainWindowViewModel : ObservableObject
     public ProjectDetailViewModel CreateProjectDetailViewModel(Action navigateBack)
     {
         return new ProjectDetailViewModel(_projectService, navigateBack);
+    }
+
+    private static TranslationService CreateTranslationService(string baseDirectory, string libraryPath)
+    {
+        var modelDirectory = Path.Combine(baseDirectory, "models", "translation");
+        var (settings, modelConfig) = TranslationSettingsLoader.Load(modelDirectory, libraryPath);
+        var cachePath = Path.Combine(libraryPath, ".translation_cache.json");
+
+        var protectedTerms = new[]
+        {
+            "Unity",
+            "Unreal Engine",
+            "Blender",
+            "DOTween",
+            "Yarn Spinner",
+            "Text Animator",
+            "VR",
+            "AR",
+            "Cinema 4D"
+        };
+
+        var mappedPhrases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Typewriter"] = "打字机效果",
+            ["Per-character"] = "逐字",
+            ["Per character"] = "逐字"
+        };
+
+        var protector = new TranslationTermProtector(protectedTerms, mappedPhrases);
+        var cacheStore = new TranslationCacheStore(cachePath);
+        var provider = new OnnxMarianProvider(modelConfig);
+        return new TranslationService(cacheStore, provider, settings, protector);
     }
 }

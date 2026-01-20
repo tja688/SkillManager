@@ -34,7 +34,7 @@
                         <TextBlock
                             Margin="0,8,0,0"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="{Binding Description}"
+                            Text="{Binding DescriptionDisplay}"
                             TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:Card>
@@ -56,7 +56,7 @@
                         <TextBlock
                             Margin="0,6,0,0"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="{Binding WhenToUse}"
+                            Text="{Binding WhenToUseDisplay}"
                             TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:Card>

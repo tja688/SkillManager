@@ -174,7 +174,7 @@
                                     <TextBlock
                                         Margin="0,4,0,0"
                                         Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                        Text="{Binding Description}"
+                                        Text="{Binding DescriptionDisplay}"
                                         TextTrimming="CharacterEllipsis" />
                                     <TextBlock
                                         Margin="0,4,0,0"

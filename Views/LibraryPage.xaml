@@ -22,6 +22,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <!-- Header Toolbar -->
@@ -68,8 +69,40 @@
             </StackPanel>
         </Grid>
 
+        <!-- Translation Status -->
+        <Grid Grid.Row="1" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <ui:ProgressRing Width="16"
+                                 Height="16"
+                                 IsIndeterminate="True"
+                                 Visibility="{Binding IsTranslationRunning, Converter={StaticResource BoolToVisibilityConverter}}" />
+                <TextBlock Margin="8,0,0,0"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           Text="{Binding TranslationStatusMessage}"
+                           Visibility="{Binding TranslationStatusMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <ui:Button Command="{Binding StartPretranslateCommand}"
+                           Content="批量预翻译"
+                           Margin="0,0,8,0" />
+                <ui:Button Command="{Binding CancelPretranslateCommand}"
+                           Content="取消翻译"
+                           IsEnabled="{Binding IsBatchTranslationRunning}"
+                           Margin="0,0,8,0" />
+                <ui:Button Command="{Binding ClearTranslationCacheCommand}"
+                           Content="清空翻译缓存" />
+            </StackPanel>
+        </Grid>
+
         <!-- Skill List - 直接使用 ItemsControl，不包装 ScrollViewer -->
-        <Grid Grid.Row="1" Margin="0,16,0,0">
+        <Grid Grid.Row="2" Margin="0,16,0,0">
             <ui:ProgressRing IsIndeterminate="True"
                              Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
                              VerticalAlignment="Center"
@@ -84,21 +117,21 @@
                           Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal" 
-                                   ItemWidth="280"/>
+                        <!-- 使用 UniformGrid 实现均匀分布布局 -->
+                        <UniformGrid Columns="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource WidthToColumnsConverter}, ConverterParameter=280}" 
+                                     Rows="0"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemContainerStyle>
                     <Style TargetType="ContentPresenter">
-                        <Setter Property="Margin" Value="0,0,16,16" />
-                        <Setter Property="Width" Value="264" />
+                        <Setter Property="Margin" Value="8" />
                     </Style>
                 </ItemsControl.ItemContainerStyle>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:SkillFolder}">
                         <ui:Card Padding="16"
                                  Cursor="Hand"
-                                 ToolTip="{Binding WhenToUse}"
+                                 ToolTip="{Binding WhenToUseDisplay}"
                                  MouseLeftButtonUp="SkillCard_MouseLeftButtonUp">
                             <ui:Card.Style>
                                 <Style TargetType="ui:Card" BasedOn="{StaticResource {x:Type ui:Card}}">
@@ -116,6 +149,7 @@
 
                             <Grid>
                                 <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
@@ -166,20 +200,28 @@
                                            Margin="0,6,0,0"
                                            FontSize="12"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                           Text="{Binding WhenToUse}"
+                                           Text="{Binding WhenToUseDisplay}"
                                            TextTrimming="CharacterEllipsis"
                                            TextWrapping="Wrap"
                                            MaxHeight="48"
-                                           Visibility="{Binding WhenToUse, Converter={StaticResource StringToVisibilityConverter}}" />
+                                           Visibility="{Binding WhenToUseDisplay, Converter={StaticResource StringToVisibilityConverter}}" />
 
                                 <TextBlock Grid.Row="3"
+                                           Margin="0,6,0,0"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                           Text="{Binding TranslationStatusMessage}"
+                                           TextTrimming="CharacterEllipsis"
+                                           Visibility="{Binding TranslationStatusMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                                <TextBlock Grid.Row="4"
                                            Margin="0,8,0,0"
                                            FontSize="12"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                            Text="{Binding GroupNamesDisplay, StringFormat=所属分组：{0}}"
                                            TextTrimming="CharacterEllipsis" />
 
-                                <StackPanel Grid.Row="4"
+                                <StackPanel Grid.Row="5"
                                             Margin="0,12,0,0"
                                             HorizontalAlignment="Right"
                                             Orientation="Horizontal">

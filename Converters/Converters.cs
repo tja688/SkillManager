@@ -137,6 +137,7 @@ public class StringToVisibilityConverter : IValueConverter
 
 /// <summary>
 /// 宽度转列数（用于卡片布局自适应）
+/// 根据容器宽度自动计算最佳列数，确保卡片均匀分布
 /// </summary>
 public class WidthToColumnsConverter : IValueConverter
 {
@@ -144,18 +145,25 @@ public class WidthToColumnsConverter : IValueConverter
     {
         if (value is double width && width > 0)
         {
-            var minCardWidth = 260d;
+            // 默认最小卡片宽度
+            var minCardWidth = 280d;
             if (parameter != null && double.TryParse(parameter.ToString(), out var parsed))
             {
                 minCardWidth = parsed;
             }
 
+            // 卡片间距（每侧8px，共16px）
             var spacing = 16d;
+            
+            // 计算可容纳的列数
+            // 公式：(可用宽度 + 间距) / (卡片最小宽度 + 间距)
             var columns = (int)Math.Floor((width + spacing) / (minCardWidth + spacing));
-            return Math.Max(1, columns);
+            
+            // 限制最小1列，最大6列（防止卡片过小）
+            return Math.Clamp(columns, 1, 6);
         }
 
-        return 1;
+        return 3; // 默认3列
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

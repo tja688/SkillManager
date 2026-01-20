@@ -17,18 +17,27 @@ public partial class LibraryViewModel : ObservableObject
     private readonly LibraryService _libraryService;
     private readonly GroupService _groupService;
     private readonly DebugService _debugService;
+    private readonly TranslationService _translationService;
     private readonly List<SkillFolder> _allSkills = new();
+    private readonly Dictionary<string, SkillFolder> _skillLookup = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _pendingTranslations = new(StringComparer.OrdinalIgnoreCase);
     private string? _pendingGroupId;
+    private CancellationTokenSource? _pretranslateCts;
+    private int _pendingTranslationCount;
 
-    public LibraryViewModel(LibraryService libraryService, GroupService groupService)
+    public LibraryViewModel(LibraryService libraryService, GroupService groupService, TranslationService translationService)
     {
         _libraryService = libraryService;
         _groupService = groupService;
+        _translationService = translationService;
         _debugService = DebugService.Instance;
         
         Skills = new ObservableCollection<SkillFolder>();
         Groups = new ObservableCollection<SkillGroup>();
         FilteredSkills = new ObservableCollection<SkillFolder>();
+
+        _translationService.TranslationQueued += OnTranslationQueued;
+        _translationService.TranslationCompleted += OnTranslationCompleted;
     }
 
     public event Action? GroupsRefreshed;
@@ -59,6 +68,15 @@ public partial class LibraryViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _hasSelection;
+
+    [ObservableProperty]
+    private bool _isTranslationRunning;
+
+    [ObservableProperty]
+    private string _translationStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _isBatchTranslationRunning;
 
     partial void OnSelectedGroupChanged(SkillGroup? oldValue, SkillGroup? newValue)
     {
@@ -104,7 +122,7 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
-    partial void OnFilteredSkillsChanged(ObservableCollection<SkillFolder>? oldValue, ObservableCollection<SkillFolder>? newValue)
+    partial void OnFilteredSkillsChanged(ObservableCollection<SkillFolder>? oldValue, ObservableCollection<SkillFolder> newValue)
     {
         _debugService.TrackViewModelState(
             "LibraryViewModel",
@@ -168,6 +186,9 @@ public partial class LibraryViewModel : ObservableObject
             _allSkills.Clear();
             _allSkills.AddRange(await _libraryService.GetAllSkillsAsync(true));
             ApplyGroupDisplay(_allSkills, groups);
+            await ApplyCachedTranslationsAsync(_allSkills);
+            UpdateSkillLookup(_allSkills);
+            _ = _translationService.QueueIncrementalAsync(_allSkills, CancellationToken.None);
 
             _debugService.LogIfEnabled(
                 "scroll_viewmodel_state",
@@ -216,6 +237,129 @@ public partial class LibraryViewModel : ObservableObject
                 skill.GroupNamesDisplay = "未分组";
             }
         }
+    }
+
+    private async Task ApplyCachedTranslationsAsync(IEnumerable<SkillFolder> skills)
+    {
+        var translations = await _translationService.GetCachedTranslationsAsync(skills, CancellationToken.None);
+        foreach (var skill in skills)
+        {
+            if (translations.TryGetValue(skill.SkillId, out var pair))
+            {
+                skill.WhenToUseZh = pair.WhenToUse;
+                skill.DescriptionZh = pair.Description;
+            }
+            else
+            {
+                skill.WhenToUseZh = string.Empty;
+                skill.DescriptionZh = string.Empty;
+            }
+        }
+    }
+
+    private void UpdateSkillLookup(IEnumerable<SkillFolder> skills)
+    {
+        _skillLookup.Clear();
+        _pendingTranslations.Clear();
+        _pendingTranslationCount = 0;
+
+        foreach (var skill in skills)
+        {
+            if (!string.IsNullOrWhiteSpace(skill.SkillId))
+            {
+                _skillLookup[skill.SkillId] = skill;
+            }
+        }
+
+        UpdateTranslationIndicator();
+    }
+
+    private void UpdateTranslationIndicator()
+    {
+        IsTranslationRunning = IsBatchTranslationRunning || _pendingTranslationCount > 0;
+
+        if (IsBatchTranslationRunning)
+        {
+            return;
+        }
+
+        if (_pendingTranslationCount > 0)
+        {
+            TranslationStatusMessage = $"后台翻译中：{_pendingTranslationCount} 项";
+            return;
+        }
+
+        if (TranslationStatusMessage.StartsWith("后台翻译中", StringComparison.Ordinal))
+        {
+            TranslationStatusMessage = string.Empty;
+        }
+    }
+
+    private void OnTranslationQueued(object? sender, TranslationQueuedEventArgs e)
+    {
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            if (!_skillLookup.TryGetValue(e.SkillId, out var skill))
+            {
+                return;
+            }
+
+            if (!_pendingTranslations.TryGetValue(e.SkillId, out var count))
+            {
+                count = 0;
+            }
+
+            _pendingTranslations[e.SkillId] = count + 1;
+            _pendingTranslationCount++;
+            skill.IsTranslationPending = true;
+            skill.TranslationStatusMessage = "翻译中...";
+            UpdateTranslationIndicator();
+        });
+    }
+
+    private void OnTranslationCompleted(object? sender, TranslationCompletedEventArgs e)
+    {
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            if (!_skillLookup.TryGetValue(e.SkillId, out var skill))
+            {
+                return;
+            }
+
+            if (e.Success && !string.IsNullOrWhiteSpace(e.TranslatedText))
+            {
+                if (e.Field == TranslationFields.WhenToUse)
+                {
+                    skill.WhenToUseZh = e.TranslatedText;
+                }
+                else if (e.Field == TranslationFields.Description)
+                {
+                    skill.DescriptionZh = e.TranslatedText;
+                }
+            }
+
+            if (_pendingTranslations.TryGetValue(e.SkillId, out var count))
+            {
+                count--;
+                if (count <= 0)
+                {
+                    _pendingTranslations.Remove(e.SkillId);
+                    skill.IsTranslationPending = false;
+                    skill.TranslationStatusMessage = e.Success ? string.Empty : "翻译失败";
+                }
+                else
+                {
+                    _pendingTranslations[e.SkillId] = count;
+                }
+            }
+
+            if (_pendingTranslationCount > 0)
+            {
+                _pendingTranslationCount--;
+            }
+
+            UpdateTranslationIndicator();
+        });
     }
 
     private void ApplyFilter()
@@ -325,6 +469,74 @@ public partial class LibraryViewModel : ObservableObject
         {
             await RefreshSkills();
         }
+    }
+
+    [RelayCommand]
+    public async Task StartPretranslate()
+    {
+        if (IsBatchTranslationRunning) return;
+
+        IsBatchTranslationRunning = true;
+        _pretranslateCts?.Cancel();
+        _pretranslateCts = new CancellationTokenSource();
+        TranslationStatusMessage = "准备批量预翻译...";
+        UpdateTranslationIndicator();
+
+        var progress = new Progress<TranslationProgressInfo>(info =>
+        {
+            TranslationStatusMessage = $"批量翻译：{info.Completed}/{info.Total}（失败 {info.Failed}）";
+        });
+
+        try
+        {
+            await _translationService.RunBatchPretranslateAsync(_allSkills, progress, _pretranslateCts.Token);
+            if (!_pretranslateCts.Token.IsCancellationRequested)
+            {
+                TranslationStatusMessage = "批量翻译完成";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            TranslationStatusMessage = "批量翻译已取消";
+        }
+        finally
+        {
+            IsBatchTranslationRunning = false;
+            UpdateTranslationIndicator();
+        }
+    }
+
+    [RelayCommand]
+    public void CancelPretranslate()
+    {
+        _pretranslateCts?.Cancel();
+    }
+
+    [RelayCommand]
+    public async Task ClearTranslationCache()
+    {
+        var result = MessageBox.Show(
+            "确定要清空翻译缓存吗？此操作不会影响原始技能文件。",
+            "清空翻译缓存",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        await _translationService.DeleteCacheAsync(CancellationToken.None);
+        foreach (var skill in _allSkills)
+        {
+            skill.WhenToUseZh = string.Empty;
+            skill.DescriptionZh = string.Empty;
+            skill.IsTranslationPending = false;
+            skill.TranslationStatusMessage = string.Empty;
+        }
+
+        TranslationStatusMessage = "翻译缓存已清空";
+        UpdateTranslationIndicator();
     }
 
     [RelayCommand]

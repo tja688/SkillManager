@@ -51,6 +51,18 @@ public partial class SkillFolder : ObservableObject
     private string _whenToUse = string.Empty;
 
     /// <summary>
+    /// 使用场景中文翻译（缓存）
+    /// </summary>
+    [ObservableProperty]
+    private string _whenToUseZh = string.Empty;
+
+    /// <summary>
+    /// 描述中文翻译（缓存）
+    /// </summary>
+    [ObservableProperty]
+    private string _descriptionZh = string.Empty;
+
+    /// <summary>
     /// 是否展开详情
     /// </summary>
     [ObservableProperty]
@@ -69,7 +81,44 @@ public partial class SkillFolder : ObservableObject
     private bool _isSelected;
 
     /// <summary>
+    /// 翻译进行中标记
+    /// </summary>
+    [ObservableProperty]
+    private bool _isTranslationPending;
+
+    /// <summary>
+    /// 翻译状态提示
+    /// </summary>
+    [ObservableProperty]
+    private string _translationStatusMessage = string.Empty;
+
+    /// <summary>
     /// SKILL.md文件的完整路径
     /// </summary>
     public string SkillMdPath => Path.Combine(FullPath, "SKILL.md");
+
+    public string SkillId => NormalizeSkillId(FullPath);
+
+    public string WhenToUseDisplay => string.IsNullOrWhiteSpace(WhenToUseZh) ? WhenToUse : WhenToUseZh;
+
+    public string DescriptionDisplay => string.IsNullOrWhiteSpace(DescriptionZh) ? Description : DescriptionZh;
+
+    partial void OnWhenToUseChanged(string value) => OnPropertyChanged(nameof(WhenToUseDisplay));
+
+    partial void OnWhenToUseZhChanged(string value) => OnPropertyChanged(nameof(WhenToUseDisplay));
+
+    partial void OnDescriptionChanged(string value) => OnPropertyChanged(nameof(DescriptionDisplay));
+
+    partial void OnDescriptionZhChanged(string value) => OnPropertyChanged(nameof(DescriptionDisplay));
+
+    partial void OnFullPathChanged(string value) => OnPropertyChanged(nameof(SkillId));
+
+    private static string NormalizeSkillId(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+        return path.Trim()
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .Replace(Path.AltDirectorySeparatorChar, '/')
+            .ToLowerInvariant();
+    }
 }

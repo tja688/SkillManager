@@ -213,7 +213,7 @@
                                                     Padding="10"
                                                     Background="{DynamicResource ControlFillColorSecondaryBrush}"
                                                     CornerRadius="8"
-                                                    ToolTip="{Binding Description}">
+                                                    ToolTip="{Binding DescriptionDisplay}">
                                                     <Grid>
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="*" />

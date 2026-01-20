@@ -5,6 +5,8 @@ using SkillManager.Services;
 using SkillManager.Views;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
 using System.Windows;
 
 namespace SkillManager.ViewModels;
@@ -18,6 +20,8 @@ public partial class LibraryViewModel : ObservableObject
     private readonly GroupService _groupService;
     private readonly DebugService _debugService;
     private readonly TranslationService _translationService;
+    private readonly ManualTranslationStore _manualTranslationStore;
+    private readonly string _translationMetaPath;
     private readonly List<SkillFolder> _allSkills = new();
     private readonly Dictionary<string, SkillFolder> _skillLookup = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _pendingTranslations = new(StringComparer.OrdinalIgnoreCase);
@@ -25,16 +29,20 @@ public partial class LibraryViewModel : ObservableObject
     private CancellationTokenSource? _pretranslateCts;
     private int _pendingTranslationCount;
 
-    public LibraryViewModel(LibraryService libraryService, GroupService groupService, TranslationService translationService)
+    public LibraryViewModel(LibraryService libraryService, GroupService groupService, TranslationService translationService, ManualTranslationStore manualTranslationStore)
     {
         _libraryService = libraryService;
         _groupService = groupService;
         _translationService = translationService;
+        _manualTranslationStore = manualTranslationStore;
         _debugService = DebugService.Instance;
+        _translationMetaPath = Path.Combine(_libraryService.LibraryPath, ".translation_meta.json");
         
         Skills = new ObservableCollection<SkillFolder>();
         Groups = new ObservableCollection<SkillGroup>();
         FilteredSkills = new ObservableCollection<SkillFolder>();
+
+        _isTranslationEnabled = _translationService.IsEnabled;
 
         _translationService.TranslationQueued += OnTranslationQueued;
         _translationService.TranslationCompleted += OnTranslationCompleted;
@@ -77,6 +85,9 @@ public partial class LibraryViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isBatchTranslationRunning;
+
+    [ObservableProperty]
+    private bool _isTranslationEnabled;
 
     partial void OnSelectedGroupChanged(SkillGroup? oldValue, SkillGroup? newValue)
     {
@@ -129,6 +140,28 @@ public partial class LibraryViewModel : ObservableObject
             "FilteredSkills.Count",
             oldValue?.Count ?? 0,
             newValue?.Count ?? 0);
+    }
+
+    partial void OnIsTranslationEnabledChanged(bool oldValue, bool newValue)
+    {
+        _translationService.SetEnabled(newValue);
+        _ = SaveTranslationMetaAsync(newValue);
+
+        if (!newValue)
+        {
+            _pretranslateCts?.Cancel();
+            IsBatchTranslationRunning = false;
+            TranslationStatusMessage = string.Empty;
+            ClearPendingTranslationState();
+            _ = ApplyTranslationsAsync(_allSkills);
+            return;
+        }
+
+        if (_allSkills.Count > 0)
+        {
+            _ = ApplyTranslationsAsync(_allSkills);
+            _ = _translationService.QueueIncrementalAsync(_allSkills, CancellationToken.None);
+        }
     }
 
     public void SelectGroupById(string? groupId)
@@ -186,9 +219,12 @@ public partial class LibraryViewModel : ObservableObject
             _allSkills.Clear();
             _allSkills.AddRange(await _libraryService.GetAllSkillsAsync(true));
             ApplyGroupDisplay(_allSkills, groups);
-            await ApplyCachedTranslationsAsync(_allSkills);
+            await ApplyTranslationsAsync(_allSkills);
             UpdateSkillLookup(_allSkills);
-            _ = _translationService.QueueIncrementalAsync(_allSkills, CancellationToken.None);
+            if (IsTranslationEnabled)
+            {
+                _ = _translationService.QueueIncrementalAsync(_allSkills, CancellationToken.None);
+            }
 
             _debugService.LogIfEnabled(
                 "scroll_viewmodel_state",
@@ -239,21 +275,33 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
-    private async Task ApplyCachedTranslationsAsync(IEnumerable<SkillFolder> skills)
+    private async Task ApplyTranslationsAsync(IEnumerable<SkillFolder> skills)
     {
-        var translations = await _translationService.GetCachedTranslationsAsync(skills, CancellationToken.None);
+        var manualTranslations = await _manualTranslationStore.SyncAndLoadAsync(skills, CancellationToken.None);
+        var cachedTranslations = IsTranslationEnabled
+            ? await _translationService.GetCachedTranslationsAsync(skills, CancellationToken.None)
+            : new Dictionary<string, TranslationPair>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var skill in skills)
         {
-            if (translations.TryGetValue(skill.SkillId, out var pair))
+            manualTranslations.TryGetValue(skill.SkillId, out var manualPair);
+            cachedTranslations.TryGetValue(skill.SkillId, out var cachedPair);
+
+            var whenToUse = manualPair?.WhenToUse ?? string.Empty;
+            var description = manualPair?.Description ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(whenToUse) && !string.IsNullOrWhiteSpace(cachedPair?.WhenToUse))
             {
-                skill.WhenToUseZh = pair.WhenToUse;
-                skill.DescriptionZh = pair.Description;
+                whenToUse = cachedPair!.WhenToUse;
             }
-            else
+
+            if (string.IsNullOrWhiteSpace(description) && !string.IsNullOrWhiteSpace(cachedPair?.Description))
             {
-                skill.WhenToUseZh = string.Empty;
-                skill.DescriptionZh = string.Empty;
+                description = cachedPair!.Description;
             }
+
+            skill.WhenToUseZh = whenToUse;
+            skill.DescriptionZh = description;
         }
     }
 
@@ -274,8 +322,28 @@ public partial class LibraryViewModel : ObservableObject
         UpdateTranslationIndicator();
     }
 
+    private void ClearPendingTranslationState()
+    {
+        _pendingTranslations.Clear();
+        _pendingTranslationCount = 0;
+
+        foreach (var skill in _allSkills)
+        {
+            skill.IsTranslationPending = false;
+            skill.TranslationStatusMessage = string.Empty;
+        }
+
+        UpdateTranslationIndicator();
+    }
+
     private void UpdateTranslationIndicator()
     {
+        if (!IsTranslationEnabled)
+        {
+            IsTranslationRunning = false;
+            return;
+        }
+
         IsTranslationRunning = IsBatchTranslationRunning || _pendingTranslationCount > 0;
 
         if (IsBatchTranslationRunning)
@@ -295,10 +363,37 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    private async Task SaveTranslationMetaAsync(bool enabled)
+    {
+        TranslationMeta meta = new();
+
+        if (File.Exists(_translationMetaPath))
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(_translationMetaPath);
+                meta = JsonSerializer.Deserialize<TranslationMeta>(json) ?? new TranslationMeta();
+            }
+            catch
+            {
+                meta = new TranslationMeta();
+            }
+        }
+
+        meta.DisableTranslation = !enabled;
+        var output = JsonSerializer.Serialize(meta, new JsonSerializerOptions { WriteIndented = true });
+        await File.WriteAllTextAsync(_translationMetaPath, output);
+    }
+
     private void OnTranslationQueued(object? sender, TranslationQueuedEventArgs e)
     {
         Application.Current?.Dispatcher.Invoke(() =>
         {
+            if (!IsTranslationEnabled)
+            {
+                return;
+            }
+
             if (!_skillLookup.TryGetValue(e.SkillId, out var skill))
             {
                 return;
@@ -321,6 +416,11 @@ public partial class LibraryViewModel : ObservableObject
     {
         Application.Current?.Dispatcher.Invoke(() =>
         {
+            if (!IsTranslationEnabled)
+            {
+                return;
+            }
+
             if (!_skillLookup.TryGetValue(e.SkillId, out var skill))
             {
                 return;
@@ -474,6 +574,7 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     public async Task StartPretranslate()
     {
+        if (!IsTranslationEnabled) return;
         if (IsBatchTranslationRunning) return;
 
         IsBatchTranslationRunning = true;
@@ -527,13 +628,8 @@ public partial class LibraryViewModel : ObservableObject
         }
 
         await _translationService.DeleteCacheAsync(CancellationToken.None);
-        foreach (var skill in _allSkills)
-        {
-            skill.WhenToUseZh = string.Empty;
-            skill.DescriptionZh = string.Empty;
-            skill.IsTranslationPending = false;
-            skill.TranslationStatusMessage = string.Empty;
-        }
+        await ApplyTranslationsAsync(_allSkills);
+        ClearPendingTranslationState();
 
         TranslationStatusMessage = "翻译缓存已清空";
         UpdateTranslationIndicator();

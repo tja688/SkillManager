@@ -173,4 +173,14 @@ public partial class LibraryPage : Page
 
         return false;
     }
+
+    private void TranslationMenuButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element && element.ContextMenu != null)
+        {
+            element.ContextMenu.PlacementTarget = element;
+            element.ContextMenu.Placement = PlacementMode.Bottom;
+            element.ContextMenu.IsOpen = true;
+        }
+    }
 }

@@ -30,10 +30,12 @@ public partial class MainWindowViewModel : ObservableObject
         _projectService = new ProjectService(baseDirectory, _libraryService);
         _groupService = new GroupService(libraryPath);
         _translationService = CreateTranslationService(baseDirectory, libraryPath);
+        var manualTranslationPath = Path.Combine(baseDirectory, "translations", "skill_translations.json");
+        var manualTranslationStore = new ManualTranslationStore(manualTranslationPath, libraryPath);
 
         // 初始化子ViewModel
         ScanViewModel = new ScanViewModel(_scannerService, _libraryService);
-        LibraryViewModel = new LibraryViewModel(_libraryService, _groupService, _translationService);
+        LibraryViewModel = new LibraryViewModel(_libraryService, _groupService, _translationService, manualTranslationStore);
 
         // 初始加载
         LibraryViewModel.RefreshSkills();
@@ -81,7 +83,7 @@ public partial class MainWindowViewModel : ObservableObject
             MaxConcurrency = 2,
             MaxLength = 256,
             Timeout = TimeSpan.FromSeconds(60),
-            EnableTranslation = true
+            EnableTranslation = false
         };
 
         // 尝试从 .translation_meta.json 读取配置覆盖

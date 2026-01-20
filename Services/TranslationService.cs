@@ -49,6 +49,13 @@ public sealed class TranslationService : IDisposable
     public event EventHandler<TranslationQueuedEventArgs>? TranslationQueued;
     public event EventHandler<TranslationCompletedEventArgs>? TranslationCompleted;
 
+    public bool IsEnabled => _settings.EnableTranslation;
+
+    public void SetEnabled(bool enabled)
+    {
+        _settings.EnableTranslation = enabled;
+    }
+
     public async Task<IReadOnlyDictionary<string, TranslationPair>> GetCachedTranslationsAsync(IEnumerable<SkillFolder> skills, CancellationToken ct)
     {
         var keys = new List<(string SkillId, string Field, TranslationKey Key)>();
@@ -211,6 +218,12 @@ public sealed class TranslationService : IDisposable
     {
         await foreach (var job in _queue.Reader.ReadAllAsync(ct))
         {
+            if (!_settings.EnableTranslation)
+            {
+                job.Completion?.TrySetCanceled(ct);
+                continue;
+            }
+
             if (job.CancellationToken.IsCancellationRequested)
             {
                 job.Completion?.TrySetCanceled(job.CancellationToken);

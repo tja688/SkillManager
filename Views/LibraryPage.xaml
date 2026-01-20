@@ -40,6 +40,31 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                <ui:Button Width="32"
+                           Height="32"
+                           Padding="0"
+                           Margin="0,0,8,0"
+                           Appearance="Transparent"
+                           Icon="{ui:SymbolIcon MoreHorizontal24}"
+                           ToolTip="翻译工具"
+                           Click="TranslationMenuButton_Click">
+                    <ui:Button.ContextMenu>
+                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <MenuItem Header="启用翻译服务"
+                                      IsCheckable="True"
+                                      IsChecked="{Binding IsTranslationEnabled, Mode=TwoWay}" />
+                            <Separator />
+                            <MenuItem Header="批量预翻译"
+                                      Command="{Binding StartPretranslateCommand}"
+                                      IsEnabled="{Binding IsTranslationEnabled}" />
+                            <MenuItem Header="取消翻译"
+                                      Command="{Binding CancelPretranslateCommand}"
+                                      IsEnabled="{Binding IsBatchTranslationRunning}" />
+                            <MenuItem Header="清空翻译缓存"
+                                      Command="{Binding ClearTranslationCacheCommand}" />
+                        </ContextMenu>
+                    </ui:Button.ContextMenu>
+                </ui:Button>
                 <ui:TextBox PlaceholderText="搜索技能..." 
                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                             Icon="{ui:SymbolIcon Search24}"
@@ -73,7 +98,6 @@
         <Grid Grid.Row="1" Margin="0,8,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -88,17 +112,6 @@
                            Visibility="{Binding TranslationStatusMessage, Converter={StaticResource StringToVisibilityConverter}}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <ui:Button Command="{Binding StartPretranslateCommand}"
-                           Content="批量预翻译"
-                           Margin="0,0,8,0" />
-                <ui:Button Command="{Binding CancelPretranslateCommand}"
-                           Content="取消翻译"
-                           IsEnabled="{Binding IsBatchTranslationRunning}"
-                           Margin="0,0,8,0" />
-                <ui:Button Command="{Binding ClearTranslationCacheCommand}"
-                           Content="清空翻译缓存" />
-            </StackPanel>
         </Grid>
 
         <!-- Skill List - 直接使用 ItemsControl，不包装 ScrollViewer -->

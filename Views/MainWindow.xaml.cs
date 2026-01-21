@@ -292,6 +292,18 @@ public class PageService : IPageService
                 _mainWindow.NavigateToProjectDetail(project);
             });
         }
+        else if (pageType == typeof(DownloadSkillsPage))
+        {
+            return new DownloadSkillsPage(_viewModel.DownloadSkillsViewModel);
+        }
+        else if (pageType == typeof(CleanupPage))
+        {
+            return new CleanupPage(_viewModel.CleanupViewModel);
+        }
+        else if (pageType == typeof(AutomationPage))
+        {
+            return new AutomationPage(_viewModel.AutomationViewModel);
+        }
         else if (pageType == typeof(ProjectDetailPage))
         {
             // 返回预先创建的详情页面实例

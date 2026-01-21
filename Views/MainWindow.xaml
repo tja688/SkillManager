@@ -85,6 +85,18 @@
                     Content="项目"
                     Icon="{ui:SymbolIcon Folder24}"
                     TargetPageType="{x:Type local:ProjectListPage}" />
+                <ui:NavigationViewItem
+                    Content="下载Skills"
+                    Icon="{ui:SymbolIcon ArrowDownload24}"
+                    TargetPageType="{x:Type local:DownloadSkillsPage}" />
+                <ui:NavigationViewItem
+                    Content="清理"
+                    Icon="{ui:SymbolIcon Delete24}"
+                    TargetPageType="{x:Type local:CleanupPage}" />
+                <ui:NavigationViewItem
+                    Content="自动化"
+                    Icon="{ui:SymbolIcon ArrowClockwise24}"
+                    TargetPageType="{x:Type local:AutomationPage}" />
             </ui:NavigationView.MenuItems>
 
             <ui:NavigationView.FooterMenuItems>

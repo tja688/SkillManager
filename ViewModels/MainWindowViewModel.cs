@@ -19,6 +19,10 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ProjectService _projectService;
     private readonly GroupService _groupService;
     private readonly TranslationService _translationService;
+    private readonly SkillManagerSettingsService _settingsService;
+    private readonly DownloadLinksService _downloadLinksService;
+    private readonly SkillCleanupService _cleanupService;
+    private readonly SkillAutomationService _automationService;
 
     public MainWindowViewModel()
     {
@@ -32,17 +36,29 @@ public partial class MainWindowViewModel : ObservableObject
         _translationService = CreateTranslationService(baseDirectory, libraryPath);
         var manualTranslationPath = Path.Combine(baseDirectory, "translations", "skill_translations.json");
         var manualTranslationStore = new ManualTranslationStore(manualTranslationPath, libraryPath);
+        _settingsService = new SkillManagerSettingsService(baseDirectory);
+        _downloadLinksService = new DownloadLinksService(baseDirectory);
+        _cleanupService = new SkillCleanupService();
+        _automationService = new SkillAutomationService(_scannerService, _libraryService);
 
         // 初始化子ViewModel
         ScanViewModel = new ScanViewModel(_scannerService, _libraryService);
         LibraryViewModel = new LibraryViewModel(_libraryService, _groupService, _translationService, manualTranslationStore);
+        DownloadSkillsViewModel = new DownloadSkillsViewModel(_downloadLinksService);
+        CleanupViewModel = new CleanupViewModel(_scannerService, _cleanupService, _settingsService);
+        AutomationViewModel = new AutomationViewModel(_automationService, _settingsService);
+        AutomationViewModel.AutomationCompleted += () => _ = LibraryViewModel.RefreshSkills();
 
         // 初始加载
         LibraryViewModel.RefreshSkills();
+        _ = AutomationViewModel.RunAutoImportOnStartupAsync();
     }
 
     public ScanViewModel ScanViewModel { get; }
     public LibraryViewModel LibraryViewModel { get; }
+    public DownloadSkillsViewModel DownloadSkillsViewModel { get; }
+    public CleanupViewModel CleanupViewModel { get; }
+    public AutomationViewModel AutomationViewModel { get; }
     public ProjectService ProjectService => _projectService;
     public GroupService GroupService => _groupService;
 

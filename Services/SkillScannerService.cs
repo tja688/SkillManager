@@ -14,6 +14,7 @@ internal class ScanContext
 {
     public ConcurrentBag<SkillFolder> FoundSkills { get; } = new();
     public HashSet<string> ExistingSkills { get; set; } = new();
+    public IReadOnlyList<string> ExcludedPaths { get; set; } = Array.Empty<string>();
     /// <summary>
     /// 用于在扫描过程中跟踪已发现的文件夹名称，防止重复添加（线程安全）
     /// </summary>
@@ -53,7 +54,7 @@ public class SkillScannerService
     /// <summary>
     /// 扫描指定路径下的技能文件夹
     /// </summary>
-    public async Task<ScanResult> ScanAsync(string rootPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    public async Task<ScanResult> ScanAsync(string rootPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default, IEnumerable<string>? excludedPaths = null)
     {
         var result = new ScanResult();
         var stopwatch = Stopwatch.StartNew();
@@ -64,7 +65,8 @@ public class SkillScannerService
             {
                 ExistingSkills = GetExistingLibrarySkillNames(),
                 Progress = progress,
-                CancellationToken = cancellationToken
+                CancellationToken = cancellationToken,
+                ExcludedPaths = PathUtilities.NormalizePaths(excludedPaths ?? Array.Empty<string>())
             };
 
             progress?.Report($"开始扫描: {rootPath}");
@@ -99,7 +101,7 @@ public class SkillScannerService
     /// <summary>
     /// 全局扫描所有驱动器
     /// </summary>
-    public async Task<ScanResult> ScanGlobalAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    public async Task<ScanResult> ScanGlobalAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default, IEnumerable<string>? excludedPaths = null)
     {
         var result = new ScanResult();
         var stopwatch = Stopwatch.StartNew();
@@ -110,7 +112,8 @@ public class SkillScannerService
             {
                 ExistingSkills = GetExistingLibrarySkillNames(),
                 Progress = progress,
-                CancellationToken = cancellationToken
+                CancellationToken = cancellationToken,
+                ExcludedPaths = PathUtilities.NormalizePaths(excludedPaths ?? Array.Empty<string>())
             };
 
             var drives = DriveInfo.GetDrives()
@@ -158,6 +161,11 @@ public class SkillScannerService
         {
             // 检查是否已扫描过此路径（避免符号链接等导致的重复）
             if (!context.ScannedPaths.TryAdd(path.ToLowerInvariant(), 0))
+            {
+                return;
+            }
+
+            if (PathUtilities.IsPathUnder(path, context.ExcludedPaths))
             {
                 return;
             }

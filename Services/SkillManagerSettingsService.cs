@@ -1,6 +1,6 @@
-using SkillManager.Models;
 using System.IO;
 using System.Text.Json;
+using SkillManager.Models;
 
 namespace SkillManager.Services;
 
@@ -37,6 +37,19 @@ public class SkillManagerSettingsService
     {
         var settings = await LoadAsync();
         settings.AutomationPaths = PathUtilities.NormalizePaths(paths);
+        await SaveAsync(settings);
+    }
+
+    public async Task<int> LoadPollingIntervalAsync()
+    {
+        var settings = await LoadAsync();
+        return settings.AutomationPollingIntervalSeconds;
+    }
+
+    public async Task SavePollingIntervalAsync(int intervalSeconds)
+    {
+        var settings = await LoadAsync();
+        settings.AutomationPollingIntervalSeconds = Math.Max(5, Math.Min(300, intervalSeconds)); // 限制在5-300秒
         await SaveAsync(settings);
     }
 

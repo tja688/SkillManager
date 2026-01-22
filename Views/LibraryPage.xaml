@@ -144,6 +144,7 @@
                     <DataTemplate DataType="{x:Type models:SkillFolder}">
                         <ui:Card Padding="16"
                                  Cursor="Hand"
+                                 MinHeight="200"
                                  ToolTip="{Binding WhenToUseDisplay}"
                                  MouseLeftButtonUp="SkillCard_MouseLeftButtonUp">
                             <ui:Card.Style>

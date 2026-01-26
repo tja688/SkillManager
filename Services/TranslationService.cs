@@ -1,4 +1,3 @@
-using SkillManager.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using SkillManager.Models;
 
 namespace SkillManager.Services;
 
@@ -156,6 +156,39 @@ public sealed class TranslationService : IDisposable
     public async Task DeleteCacheAsync(CancellationToken ct)
     {
         await _cacheStore.DeleteAllAsync(ct);
+    }
+
+    public async Task<string> TranslateAsync(string skillId, string field, string text, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !ShouldTranslate(text))
+        {
+            return text;
+        }
+
+        var sourceHash = ComputeSourceHash(text);
+        var key = new TranslationKey(skillId, field, _settings.TargetLang, _settings.EngineId, _settings.EngineVersion, sourceHash);
+
+        var cached = await _cacheStore.TryGetAsync(key, ct);
+        if (cached != null && cached.Status == TranslationStatus.Ready)
+        {
+            return cached.TranslatedText;
+        }
+
+        var job = new TranslationJob
+        {
+            SkillId = skillId,
+            SkillName = skillId, // Use skillId as name if not provided
+            Field = field,
+            SourceText = text,
+            SourceHash = sourceHash,
+            CancellationToken = ct,
+            Completion = new TaskCompletionSource<TranslationRecord?>(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
+
+        await EnqueueAsync(job, ct);
+        var result = await job.Completion.Task;
+
+        return result?.Status == TranslationStatus.Ready ? result.TranslatedText : string.Empty;
     }
 
     public void Dispose()

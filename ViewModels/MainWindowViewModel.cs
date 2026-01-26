@@ -1,9 +1,9 @@
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SkillManager.Models;
 using SkillManager.Services;
 using SkillManager.Views;
-using System.IO;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 
@@ -50,7 +50,23 @@ public partial class MainWindowViewModel : ObservableObject
         AutomationViewModel.AutomationCompleted += () => _ = LibraryViewModel.RefreshSkills();
 
         // 初始加载
-        LibraryViewModel.RefreshSkills();
+        _ = LibraryViewModel.RefreshSkills();
+
+        // 自动翻译未翻译的技能 (后台运行)
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await manualTranslationStore.AutoTranslateAsync(_translationService, CancellationToken.None);
+                await App.Current.Dispatcher.InvokeAsync(() => LibraryViewModel.RefreshSkills());
+            }
+            catch (Exception ex)
+            {
+                DebugService.Instance.Log("Translation", $"Auto-translation on startup failed: {ex.Message}", "MainWindowViewModel", DebugLogLevel.Error);
+            }
+        });
+
         _ = AutomationViewModel.RunAutoImportOnStartupAsync();
     }
 
@@ -86,8 +102,9 @@ public partial class MainWindowViewModel : ObservableObject
         var cachePath = Path.Combine(libraryPath, ".translation_cache.json");
 
         // 从配置文件或环境变量读取翻译服务地址
-        var translationServiceUrl = Environment.GetEnvironmentVariable("TRANSLATION_SERVICE_URL") 
-            ?? "http://localhost:5123";
+        var translationServiceUrl = Environment.GetEnvironmentVariable("TRANSLATION_SERVICE_URL")
+
+            ?? "http://127.0.0.1:8080";
 
         // 创建翻译设置
         var settings = new TranslationSettings
@@ -97,9 +114,9 @@ public partial class MainWindowViewModel : ObservableObject
             SourceLang = "en",
             TargetLang = "zh-CN",
             MaxConcurrency = 2,
-            MaxLength = 256,
+            MaxLength = 512,
             Timeout = TimeSpan.FromSeconds(60),
-            EnableTranslation = false
+            EnableTranslation = true
         };
 
         // 尝试从 .translation_meta.json 读取配置覆盖
@@ -146,12 +163,15 @@ public partial class MainWindowViewModel : ObservableObject
 
         var protector = new TranslationTermProtector(protectedTerms, mappedPhrases);
         var cacheStore = new TranslationCacheStore(cachePath);
-        
-        // 使用远程翻译服务
-        var provider = new RemoteTranslationProvider(translationServiceUrl, (int)settings.Timeout.TotalSeconds);
-        
-        DebugService.Instance.Log("Translation", $"Using remote translation service: {translationServiceUrl}", "MainWindowViewModel", DebugLogLevel.Info);
-        
+
+        // 使用本地 AI 翻译代理服务
+
+        var provider = new AgentTranslationProvider(translationServiceUrl, (int)settings.Timeout.TotalSeconds);
+
+
+        DebugService.Instance.Log("Translation", $"Using local AI translation service: {translationServiceUrl}", "MainWindowViewModel", DebugLogLevel.Info);
+
+
         return new TranslationService(cacheStore, provider, settings, protector);
     }
 }

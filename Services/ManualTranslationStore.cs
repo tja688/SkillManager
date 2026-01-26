@@ -1,4 +1,3 @@
-using SkillManager.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using SkillManager.Models;
 
 namespace SkillManager.Services;
 
@@ -34,6 +34,62 @@ public sealed class ManualTranslationStore
         }
 
         return BuildTranslationMap(data, skillList);
+    }
+
+    public async Task AutoTranslateAsync(TranslationService translationService, CancellationToken ct)
+    {
+        if (!translationService.IsEnabled) return;
+
+        var data = await LoadAsync(ct);
+        var untranslatedSkills = data.Skills
+            .Where(s => (string.IsNullOrWhiteSpace(s.Description?.Translation) && !string.IsNullOrWhiteSpace(s.Description?.Source)) ||
+                        (string.IsNullOrWhiteSpace(s.WhenToUse?.Translation) && !string.IsNullOrWhiteSpace(s.WhenToUse?.Source)))
+            .ToList();
+
+        if (untranslatedSkills.Count == 0) return;
+
+        DebugService.Instance.Log("Translation", $"Starting auto-translation for {untranslatedSkills.Count} skills", "ManualTranslationStore", DebugLogLevel.Info);
+
+        var updated = false;
+        var completedCount = 0;
+
+        foreach (var skill in untranslatedSkills)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(skill.Description.Translation) && !string.IsNullOrWhiteSpace(skill.Description.Source))
+            {
+                var translated = await translationService.TranslateAsync(skill.Id, TranslationFields.Description, skill.Description.Source, ct);
+                if (!string.IsNullOrWhiteSpace(translated))
+                {
+                    skill.Description.Translation = translated;
+                    updated = true;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(skill.WhenToUse.Translation) && !string.IsNullOrWhiteSpace(skill.WhenToUse.Source))
+            {
+                var translated = await translationService.TranslateAsync(skill.Id, TranslationFields.WhenToUse, skill.WhenToUse.Source, ct);
+                if (!string.IsNullOrWhiteSpace(translated))
+                {
+                    skill.WhenToUse.Translation = translated;
+                    updated = true;
+                }
+            }
+
+            completedCount++;
+            if (completedCount % 5 == 0 || completedCount == untranslatedSkills.Count)
+            {
+                DebugService.Instance.Log("Translation", $"Auto-translated {completedCount}/{untranslatedSkills.Count} skills", "ManualTranslationStore", DebugLogLevel.Info);
+            }
+        }
+
+        if (updated)
+        {
+            data.GeneratedAtUtc = DateTime.UtcNow;
+            await SaveAsync(data, ct);
+            DebugService.Instance.Log("Translation", "Auto-translation completed and saved.", "ManualTranslationStore", DebugLogLevel.Info);
+        }
     }
 
     private async Task<ManualTranslationFile> LoadAsync(CancellationToken ct)

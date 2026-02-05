@@ -64,12 +64,12 @@ public sealed class AgentTranslationProvider : ITranslationProvider, IDisposable
 
             var error = result?.Status ?? "Unknown error from service";
             _debugService.Log("Translation", $"AI Translation failed: {error}", "AgentTranslationProvider", DebugLogLevel.Warning);
-            return text; // Fallback to original text on business failure
+            throw new Exception($"Translation service failed: {error}");
         }
         catch (Exception ex)
         {
             _debugService.Log("Translation", $"AI Translation service error: {ex.Message}", "AgentTranslationProvider", DebugLogLevel.Error);
-            return text; // Fallback to original text on connection failure
+            throw; // Propagate exception to let TranslationService handle it as a failure
         }
     }
 

@@ -132,11 +132,24 @@ html, body {
 }
 
 .skill-list {
-  width: 380px;
-  min-width: 280px;
+  width: var(--left-width, 380px);
+  min-width: 200px;
   border-right: 1px solid var(--border);
   overflow-y: auto;
   background: var(--bg);
+  flex-shrink: 0;
+}
+
+.resizer {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.resizer:hover {
+  background: var(--accent);
 }
 
 .skill-item {
@@ -173,6 +186,19 @@ html, body {
   color: var(--text-secondary);
   display: flex;
   gap: 8px;
+}
+
+.fav-star {
+  float: right;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: 6px;
+  transition: color 0.15s;
+}
+
+.fav-star:hover, .fav-star.active {
+  color: var(--warning);
 }
 
 .badge {

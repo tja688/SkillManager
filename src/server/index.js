@@ -16,6 +16,7 @@ app.use((req, res, next) => {
 // API 路由
 app.use('/api/config', require('./routes/config'));
 app.use('/api/library', require('./routes/library'));
+app.use('/api/favorites', require('./routes/favorites'));
 app.use('/api/scan', require('./routes/scan'));
 app.use('/api/map', require('./routes/map'));
 

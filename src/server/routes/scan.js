@@ -47,14 +47,23 @@ router.post('/', async (req, res) => {
       scanJob.logs = logs;
     });
 
-    // 标记是否已在库中
+    // 过滤已入库的技能（同名且同 hash），只保留新增
     const libIndex = readLibraryIndex();
-    const libNames = new Set(libIndex.skills.map(s => s.folderName.toLowerCase()));
-    results.forEach(r => {
-      r.isInLibrary = libNames.has(r.folderName.toLowerCase());
+    const libMap = new Map();
+    for (const s of libIndex.skills) {
+      const key = `${s.folderName.toLowerCase()}|${s.contentHash || ''}`;
+      libMap.set(key, true);
+      // 同时记录 originalFolderName
+      if (s.originalFolderName) {
+        libMap.set(`${s.originalFolderName.toLowerCase()}|${s.contentHash || ''}`, true);
+      }
+    }
+    const filtered = results.filter(r => {
+      const key = `${r.folderName.toLowerCase()}|${r.contentHash}`;
+      return !libMap.has(key);
     });
 
-    lastScanResults = results;
+    lastScanResults = filtered;
     fs.writeFileSync(getScanCachePath(), JSON.stringify({ scanTime: new Date().toISOString(), skills: results }, null, 2), 'utf-8');
 
     scanJob.status = 'completed';

@@ -12,36 +12,48 @@ function getScanCachePath() {
 router.get('/', (req, res) => {
   const p = getScanCachePath();
   if (!fs.existsSync(p)) {
-    return res.json({ skills: [], duplicates: [] });
+    return res.json({ zones: [], duplicateNames: [] });
   }
   try {
     const cache = JSON.parse(fs.readFileSync(p, 'utf-8'));
     const skills = cache.skills || [];
 
-    // 按 folderName 分组，找出重复
-    const groups = {};
+    // 1. 按上层目录分组 (parentSkillsPath 的父目录)
+    const zoneMap = {};
     for (const s of skills) {
-      const key = s.folderName.toLowerCase();
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(s);
+      const zonePath = path.dirname(s.parentSkillsPath);
+      if (!zoneMap[zonePath]) zoneMap[zonePath] = [];
+      zoneMap[zonePath].push(s);
     }
 
-    const duplicates = Object.entries(groups)
-      .filter(([_, list]) => list.length > 1)
-      .map(([name, list]) => ({
-        folderName: list[0].folderName,
-        locations: list.map(l => ({
-          path: l.parentSkillsPath,
-          skillMdPath: l.skillMdPath,
-          createdTime: l.createdTime,
-          isInLibrary: l.isInLibrary,
-        })),
-        count: list.length,
-      }));
+    // 2. 找出跨 zone 重复的 skill 名
+    const nameCount = {};
+    for (const s of skills) {
+      const key = s.folderName.toLowerCase();
+      nameCount[key] = (nameCount[key] || 0) + 1;
+    }
+    const duplicateNames = Object.entries(nameCount)
+      .filter(([_, count]) => count > 1)
+      .map(([name]) => name);
 
-    res.json({ skills, duplicates });
+    // 3. 组装 zones
+    const zones = Object.entries(zoneMap).map(([zonePath, zoneSkills]) => ({
+      zonePath,
+      skills: zoneSkills.map(s => ({
+        folderName: s.folderName,
+        skillMdPath: s.skillMdPath,
+        createdTime: s.createdTime,
+        isDuplicate: nameCount[s.folderName.toLowerCase()] > 1,
+      })),
+      skillCount: zoneSkills.length,
+    }));
+
+    // 按 skillCount 降序排列
+    zones.sort((a, b) => b.skillCount - a.skillCount);
+
+    res.json({ zones, duplicateNames });
   } catch {
-    res.json({ skills: [], duplicates: [] });
+    res.json({ zones: [], duplicateNames: [] });
   }
 });
 

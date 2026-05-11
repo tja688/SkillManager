@@ -7,8 +7,8 @@ router.get('/translation/status', (req, res) => {
 });
 
 router.get('/', (req, res) => {
-  const { search, translated } = req.query;
-  const skills = getAllSkills({ search, translated });
+  const { search, translated, sortBy } = req.query;
+  const skills = getAllSkills({ search, translated, sortBy });
   res.json(skills);
 });
 

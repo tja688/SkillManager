@@ -16,7 +16,19 @@ function readLibraryIndex() {
   const p = getLibraryIndexPath();
   if (!fs.existsSync(p)) return { version: 1, lastUpdated: new Date().toISOString(), skills: [] };
   try {
-    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+    const index = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    let changed = false;
+    for (const sk of index.skills) {
+      if (!sk.contentHash && fs.existsSync(sk.skillMdPath)) {
+        const content = fs.readFileSync(sk.skillMdPath, 'utf-8');
+        sk.contentHash = computeHash(content);
+        changed = true;
+      }
+    }
+    if (changed) {
+      writeLibraryIndex(index);
+    }
+    return index;
   } catch {
     return { version: 1, lastUpdated: new Date().toISOString(), skills: [] };
   }
@@ -103,11 +115,11 @@ function refreshTranslationStatus() {
 }
 
 /**
- * 获取库中所有技能（支持过滤）
+ * 获取库中所有技能（支持过滤和排序）
  */
-function getAllSkills({ search = '', translated = 'all' } = {}) {
+function getAllSkills({ search = '', translated = 'all', sortBy = 'createdTime' } = {}) {
   const { libIndex } = refreshTranslationStatus();
-  let skills = libIndex.skills;
+  let skills = [...libIndex.skills];
 
   if (search) {
     const s = search.toLowerCase();
@@ -123,6 +135,18 @@ function getAllSkills({ search = '', translated = 'all' } = {}) {
   } else if (translated === 'no') {
     skills = skills.filter(sk => !sk.hasTranslation);
   }
+
+  // 排序
+  skills.sort((a, b) => {
+    if (sortBy === 'name') {
+      return a.folderName.localeCompare(b.folderName);
+    }
+    if (sortBy === 'importedAt') {
+      return new Date(b.importedAt || 0) - new Date(a.importedAt || 0);
+    }
+    // 默认 createdTime 从新到老
+    return new Date(b.createdTime || 0) - new Date(a.createdTime || 0);
+  });
 
   return skills;
 }

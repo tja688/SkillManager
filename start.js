@@ -1,5 +1,4 @@
 const { spawn } = require('child_process');
-const open = require('open');
 
 const PORT = process.env.PORT || 3456;
 const URL = `http://localhost:${PORT}`;
@@ -13,21 +12,27 @@ const server = spawn(process.execPath, ['src/server/index.js'], {
 
 // 等待服务器就绪后打开浏览器
 let opened = false;
-const checkAndOpen = () => {
+const checkAndOpen = async () => {
   if (opened) return;
   const http = require('http');
-  const req = http.get(URL, (res) => {
+  const req = http.get(URL, async (res) => {
     if (res.statusCode === 200) {
       opened = true;
       console.log(`正在打开浏览器: ${URL}`);
-      open(URL);
+      try {
+        const open = require('open').default;
+        await open(URL);
+      } catch (e) {
+        console.log(`打开浏览器失败: ${e.message}`);
+        console.log(`请手动在浏览器中打开: ${URL}`);
+      }
     }
   });
   req.on('error', () => {
     // 还未就绪，稍后重试
   });
   req.setTimeout(2000, () => {
-    req.abort();
+    req.destroy();
   });
 };
 
